@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "312e0c75263b5722feff8f768700a04cc54db9c3b3b75e5a480ff90e64d57acc"
+            "sha256": "8a77a9e34fc70970ec75a09f916170a10f7a62f9d528c996da27521a33af8a9f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -128,6 +128,14 @@
             ],
             "markers": "python_full_version >= '3.7.0'",
             "version": "==3.3.2"
+        },
+        "colorthief": {
+            "hashes": [
+                "sha256:079cb0c95bdd669c4643e2f7494de13b0b6029d5cdbe2d74d5d3c3386bd57221",
+                "sha256:b04fc8ce5cf9c888768745e29cb19b7b688d5711af6fba26e8057debabec56b9"
+            ],
+            "index": "pypi",
+            "version": "==0.2.1"
         },
         "idna": {
             "hashes": [

@@ -1,10 +1,11 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import Qt, QPropertyAnimation, QTimeLine, QPoint
+from PyQt5.QtCore import Qt, QPropertyAnimation, QTimeLine, QPoint, QEasingCurve
 from PIL import Image
 import requests
 from io import BytesIO
+from colorthief import ColorThief
 from config import params as p
 from config import urls
 
@@ -19,6 +20,22 @@ previous_track_id = None
 previous_is_playing = None
 
 
+def get_image_color(image_url, accent = True):
+    response = requests.get(image_url)
+    img_data = BytesIO(response.content)
+    color_thief = ColorThief(img_data)
+
+    if accent:
+        palette = color_thief.get_palette(color_count=3, quality=1)
+        if len(palette) > 1:
+            accent_color = palette[1]
+            return '#%02x%02x%02x' % accent_color
+
+    # If there isn't more than 1 color, it'll use predominant color instead
+    dominant_color = color_thief.get_color(quality=1)
+    return '#%02x%02x%02x' % dominant_color
+
+
 class MusicCard(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -28,36 +45,47 @@ class MusicCard(QtWidgets.QWidget):
 
         # Main layout
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
-        self.setStyleSheet("background-color: #202020; border-radius: 8px;")
+        self.setStyleSheet("background-color: #202020;")
 
-        self.setGeometry(10, 10, 300, 100)
+        self.setGeometry(-50, 30, 350, 120)
         self.card_layout = QtWidgets.QHBoxLayout(self)
-        self.card_layout.setContentsMargins(10, 10, 10, 10)
+        self.card_layout.setContentsMargins(0, 0, 20, 0)
         self.setLayout(self.card_layout)
 
         # Card's info
+        self.bar = QtWidgets.QWidget(self)
+        self.bar.setFixedSize(60, self.height())
+        self.bar.setStyleSheet("background-color: #7538e4;")
+        self.card_layout.addWidget(self.bar, 0)
+
         self.img_label = QtWidgets.QLabel(self)
         self.img_label.setFixedSize(64, 64)
-        self.card_layout.addWidget(self.img_label)
+        self.card_layout.addSpacing(10)
+        self.card_layout.addWidget(self.img_label, 1)
 
         self.info_layout = QtWidgets.QVBoxLayout()
+        self.info_layout.setAlignment(Qt.AlignVCenter)
+        self.info_layout.setContentsMargins(10, 0, 10, 0)
+
         self.title_label = QtWidgets.QLabel("", self)
-        self.title_label.setStyleSheet("color: white; font-size: 16px; font-family: 'Tsunagi Gothic Black', 'Filson Pro', Helvetica;")
+        self.title_label.setStyleSheet("color: white; font-size: 24px; font-family: 'Tsunagi Gothic Black', 'Filson Pro', Helvetica;")
         self.artist_label = QtWidgets.QLabel("", self)
         self.artist_label.setStyleSheet("color: white; font-size: 12px; font-family: 'Tsunagi Gothic Black', 'Filson Pro', Helvetica;")
+
         self.info_layout.addWidget(self.title_label)
         self.info_layout.addWidget(self.artist_label)
-
         self.card_layout.addLayout(self.info_layout)
 
         # Animations
         self.slide_in_animation = QPropertyAnimation(self, b"pos")
-        self.slide_in_animation.setDuration(500)
+        self.slide_in_animation.setDuration(1500)
+        self.slide_in_animation.setEasingCurve(QEasingCurve.OutBack)
 
         self.slide_out_animation = QPropertyAnimation(self, b"pos")
-        self.slide_out_animation.setDuration(500)
+        self.slide_out_animation.setDuration(2000)
+        self.slide_out_animation.setEasingCurve(QEasingCurve.InBack)
 
-        self.timeline = QTimeLine(5000)  # How long will the card last in screen
+        self.timeline = QTimeLine(6000)  # How long will the card last in screen
         self.timeline.setFrameRange(0, 100)
         self.timeline.frameChanged.connect(self.start_fade_out)
 
@@ -89,6 +117,10 @@ class MusicCard(QtWidgets.QWidget):
                 pixmap = QtGui.QPixmap.fromImage(qimage)
                 self.img_label.setPixmap(pixmap)
 
+                # Apply dominant color to the vertical bar
+                dominant_color = get_image_color(img_url)
+                self.bar.setStyleSheet(f"background-color: {dominant_color};")
+
                 self.show_card()
                 self.timeline.start()
 
@@ -99,9 +131,9 @@ class MusicCard(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(1000, self.update_card)
 
     def show_card(self):
-        # Slide in animation from the left of the screen
-        start_pos = QPoint(-300, 10)
-        end_pos = QPoint(0, 10)
+        # Slide in animation from left side of the screen
+        start_pos = QPoint(-500, 30)
+        end_pos = QPoint(-50, 30)
         self.slide_in_animation.setStartValue(start_pos)
         self.slide_in_animation.setEndValue(end_pos)
         self.slide_in_animation.start()
@@ -112,8 +144,8 @@ class MusicCard(QtWidgets.QWidget):
 
     def hide_card(self):
         # Slide out animation
-        start_pos = QPoint(10, 10)
-        end_pos = QPoint(-300, 10)
+        start_pos = QPoint(-50, 30)
+        end_pos = QPoint(-500, 30)
         self.slide_out_animation.setStartValue(start_pos)
         self.slide_out_animation.setEndValue(end_pos)
         self.slide_out_animation.start()
