@@ -1,5 +1,5 @@
 # Development
-client.py
+config/client.json
 .idea/
 .vscode/
 
@@ -10,3 +10,4 @@ __pycache__/
 
 # Other
 Thumbs.db
+*~

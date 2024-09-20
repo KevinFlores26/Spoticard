@@ -9,6 +9,7 @@ spotipy = "*"
 requests = "*"
 pyqt5 = "*"
 colorthief = "*"
+darkdetect = "*"
 
 [dev-packages]
 
