@@ -1,12 +1,18 @@
-import spotipy
+import spotipy, requests
 from spotipy.oauth2 import SpotifyOAuth
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import Qt, QPropertyAnimation, QTimeLine, QPoint, QEasingCurve
 from PIL import Image
-import requests
 from io import BytesIO
 
-from utils.utils import load_json, get_current_theme, get_image_color, EASING_FUNCTIONS
+from utils.utils import (
+    load_json,
+    get_current_theme,
+    get_image_color,
+    EASING_FUNCTIONS,
+    get_current_playback,
+    get_total_width,
+)
 from config.config import params as p
 from config.config import urls
 
@@ -39,38 +45,46 @@ class MusicCard(QtWidgets.QWidget):
         self.previous_track_id = None
         self.previous_is_playing = None
 
+        self.is_spotify_turn_on = True
+        self.warning_card_shown = False
+
         # Main layout
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setStyleSheet(f"background-color: {theme.get('bg_color', '#202020')};")
-
-        self.setGeometry(
-            get_pr("end_x_pos"),
-            get_pr("end_y_pos"),
-            get_pr("card_width"),
-            get_pr("card_height"),
+        self.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
+        self.setMinimumSize(get_pr("min_card_width"), get_pr("min_card_height"))
+        self.setMaximumSize(get_pr("min_card_width") * 4, get_pr("min_card_height"))
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
         )
+
         self.card_layout = QtWidgets.QHBoxLayout(self)
-        self.card_layout.setContentsMargins(0, 0, 20, 0)
+        self.card_layout.setContentsMargins(
+            get_pr("card_l_margin"),
+            get_pr("card_t_margin"),
+            get_pr("card_r_margin"),
+            get_pr("card_b_margin"),
+        )
         self.setLayout(self.card_layout)
 
         # Card's info
         self.bar = QtWidgets.QWidget(self)
         self.bar.setFixedSize(60, self.height())
         self.bar.setStyleSheet(
-            "background-color: #1ed760;"
-        )  # Background color fallback
+            f"background: {get_pr('custom_accent')};"
+        )  # Accent color fallback
         self.card_layout.addWidget(self.bar, get_pr("color_bar_order"))
+        self.card_layout.addSpacing(get_pr("card_spacing"))
 
         self.img_label = QtWidgets.QLabel(self)
         self.img_label.setFixedSize(
             get_pr("song_image_size"), get_pr("song_image_size")
         )
-        self.card_layout.addSpacing(10)
         self.card_layout.addWidget(self.img_label, get_pr("card_order"))
+        self.card_layout.addSpacing(get_pr("card_spacing"))
 
         self.info_layout = QtWidgets.QVBoxLayout()
         self.info_layout.setAlignment(Qt.AlignVCenter)
-        self.info_layout.setContentsMargins(10, 0, 10, 0)
 
         self.title_label = QtWidgets.QLabel("", self)
         self.title_label.setStyleSheet(
@@ -98,18 +112,38 @@ class MusicCard(QtWidgets.QWidget):
             EASING_FUNCTIONS.get(get_pr("close_animation_easing"), QEasingCurve.Linear)
         )
 
-        self.timeline = QTimeLine(
-            get_pr("total_card_dur")
-        )  # How long will the card last in screen
+        # How long will the card last in screen
+        self.timeline = QTimeLine(get_pr("total_card_dur"))
         self.timeline.setFrameRange(0, 100)
-        self.timeline.frameChanged.connect(self.start_fade_out)
+        self.timeline.frameChanged.connect(self.start_hide_card)
 
         self.update_card()
 
     def update_card(self):
-        current_playback = sp.current_playback()
+        current_playback = get_current_playback(sp)
 
-        if current_playback:
+        if current_playback is None:
+            self.is_spotify_turn_on = False
+
+            if not self.is_spotify_turn_on and not self.warning_card_shown:
+                self.setWindowOpacity(1)
+
+                self.bar.setStyleSheet(f"background: {get_pr('custom_accent')};")
+                self.title_label.setText("Not playing")
+                self.artist_label.setText(
+                    "Turn on Spotify or check your internet connection"
+                )
+                self.img_label.clear()
+
+                self.show_card()
+
+                self.warning_card_shown = True
+                self.previous_track_id = None
+
+        elif current_playback:
+            self.is_spotify_turn_on = True
+            self.warning_card_shown = False
+
             current_track = current_playback["item"]
             is_playing = current_playback["is_playing"]
             current_track_id = current_track["id"]
@@ -118,6 +152,11 @@ class MusicCard(QtWidgets.QWidget):
             if current_track_id != self.previous_track_id or (
                     self.previous_is_playing == False and is_playing == True
             ):
+                self.previous_track_id = current_track_id
+                self.previous_is_playing = is_playing
+
+                self.setWindowOpacity(1)
+
                 self.title_label.setText(current_track["name"])
                 self.artist_label.setText(
                     ", ".join([artist["name"] for artist in current_track["artists"]])
@@ -145,8 +184,12 @@ class MusicCard(QtWidgets.QWidget):
                 image_color = get_image_color(img_url)
                 self.bar.setStyleSheet(f"background-color: {image_color};")
 
+                # Set the card width manually
+                total_width = get_total_width(
+                    self.card_layout, get_pr("card_spacing"), get_pr("min_card_width")
+                )
+                self.setFixedWidth(total_width)
                 self.show_card()
-                self.timeline.start()
 
             # Update the previous state
             self.previous_track_id = current_track_id
@@ -155,14 +198,16 @@ class MusicCard(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(1000, self.update_card)
 
     def show_card(self):
-        # Slide in animation from left side of the screen
+        self.timeline.start()
+
         start_pos = QPoint(get_pr("start_x_pos"), get_pr("start_y_pos"))
         end_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
+
         self.slide_in_animation.setStartValue(start_pos)
         self.slide_in_animation.setEndValue(end_pos)
         self.slide_in_animation.start()
 
-    def start_fade_out(self):
+    def start_hide_card(self):
         if (
                 self.timeline.state() == QTimeLine.Running
                 and self.timeline.currentFrame() == 100
@@ -170,12 +215,22 @@ class MusicCard(QtWidgets.QWidget):
             self.hide_card()
 
     def hide_card(self):
-        # Slide out animation
+        rect = self.geometry()
         start_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
-        end_pos = QPoint(get_pr("start_x_pos"), get_pr("start_y_pos"))
+        end_pos = QPoint(-rect.width(), get_pr("start_y_pos"))
+
         self.slide_out_animation.setStartValue(start_pos)
         self.slide_out_animation.setEndValue(end_pos)
         self.slide_out_animation.start()
+        self.slide_out_animation.finished.connect(self.reset_card_properties)
+
+    def reset_card_properties(self):
+        # Reset card properties to avoid flickering or conflicts between animations
+        self.bar.setStyleSheet("background-color: #000000;")
+        self.title_label.setText("")
+        self.artist_label.setText("")
+        self.img_label.clear()
+        self.setWindowOpacity(0)
 
 
 if __name__ == "__main__":

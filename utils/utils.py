@@ -1,4 +1,5 @@
-import os, json, requests, darkdetect
+import os, json, requests, darkdetect, time
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import QEasingCurve as Ease
 from io import BytesIO
 from colorthief import ColorThief
@@ -89,3 +90,75 @@ def load_json(file_path):
     else:
         print(f"File not found or is empty: {relative_path}\n")
         return {}
+
+
+def get_current_playback(sp, retries=3, delay=5):
+    # Get current playback and retry if it fails
+    for attempt in range(retries):
+        try:
+            current_playback = sp.current_playback()
+            return current_playback
+
+        except requests.exceptions.ReadTimeout:
+            print(
+                f"ReadTimeout error. Retry {attempt + 1} of {retries} in {delay} seconds..."
+            )
+            time.sleep(delay)
+        except requests.exceptions.RequestException as e:
+            print(f"Other request error: {e}")
+            return None
+
+    return None
+
+
+def get_total_width(layout, spacing=10, min_width=0):
+    # Get the total width of the whole layout
+    total_width = 0
+
+    for i in range(layout.count()):
+        item = layout.itemAt(i)
+
+        if item.widget():
+            widget_width = item.widget().sizeHint().width()
+
+            if widget_width == -1:
+                widget_width = item.widget().width()
+
+            total_width += widget_width
+        elif item.layout():
+            layout_width = item.layout().sizeHint().width()
+
+            if isinstance(item.layout(), QtWidgets.QVBoxLayout) or isinstance(
+                    item.layout(), QtWidgets.QHBoxLayout
+            ):
+                layout_width = get_width_container_text(item.layout())
+
+            total_width += layout_width
+
+    # Add spacing and margins to the total width
+    total_width += (layout.count() - 1) * spacing
+    left_margin, top_margin, right_margin, bottom_margin = layout.getContentsMargins()
+    total_width += left_margin + right_margin
+
+    if total_width < min_width:
+        total_width = min_width
+
+    print(f"Total width: {total_width}")
+    return total_width
+
+
+def get_width_container_text(layout):
+    # Get the width of a container with text
+    relevant_width = 0
+
+    for i in range(layout.count()):
+        item = layout.itemAt(i)
+
+        if isinstance(item.widget(), QtWidgets.QLabel):
+            label = item.widget()
+            text_width = label.fontMetrics().boundingRect(label.text()).width()
+
+            if text_width > relevant_width:
+                relevant_width = text_width
+
+    return relevant_width
