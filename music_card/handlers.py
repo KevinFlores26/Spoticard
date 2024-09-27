@@ -1,10 +1,10 @@
-from PyQt5 import QtCore
 from utils.utils import (
     load_json,
     get_image_color,
     get_current_playback,
     get_total_width,
-    convert_img_to_qt
+    convert_img_to_qt,
+    set_timer
 )
 
 def_prefs = load_json(r"config\preferences_default.json")
@@ -17,23 +17,30 @@ get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 class UpdateHandler:
     def __init__(self, parent):
         self.parent = parent
+        self.sp = parent.get_sp()
 
         self.previous_track_id = None
         self.previous_is_playing = None
 
         self.is_spotify_turn_on = True
         self.warning_card_shown = False
-        self.showing_card = False
 
-    def update_card(self, sp):
-        current_playback = get_current_playback(sp)
+        self.update_timer = set_timer(self.update_card)
+
+    def update_card(self):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+
+        if self.parent.showing_card:
+            self.update_timer.stop()
+            return
+
+        current_playback = get_current_playback(self.sp)
 
         if current_playback is None:
             self.is_spotify_turn_on = False
 
             if not self.is_spotify_turn_on and not self.warning_card_shown:
-                self.parent.setWindowOpacity(1)
-
                 title = "Not playing"
                 artist = "Turn on Spotify or check your internet connection"
                 pixmap = convert_img_to_qt(get_pr("song_image_size"), r"resources\img\warning.png", False)
@@ -61,13 +68,13 @@ class UpdateHandler:
                 self.previous_is_playing = is_playing
 
                 # Verify if the card is already showing (if so, hide it), then execute update_card_properties
-                self.parent.animations.on_change(current_track)
+                self.update_card_properties(current_track)
 
             # Update the previous state
             self.previous_track_id = current_track_id
             self.previous_is_playing = is_playing
 
-        QtCore.QTimer.singleShot(1000, lambda: self.update_card(sp))
+        self.update_timer.start(1000)
 
     def update_card_properties(self, current_track):
         title = current_track["name"]
@@ -80,7 +87,7 @@ class UpdateHandler:
 
         # Set properties
         self.card_filler(title, artist, pixmap, image_color)
-        QtCore.QTimer.singleShot(0, self.parent.animations.show_card)
+        self.parent.animations.show_card()
 
     def card_filler(
             self,

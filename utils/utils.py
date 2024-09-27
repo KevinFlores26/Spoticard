@@ -1,6 +1,6 @@
 import os, json, requests, darkdetect, time
 from PIL import Image
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import QEasingCurve as Ease
 from io import BytesIO
 from colorthief import ColorThief
@@ -114,6 +114,13 @@ def get_current_playback(sp, retries=3, delay=5):
             return None
 
     return None
+
+
+def set_timer(callback):
+    timer = QtCore.QTimer()
+    timer.timeout.connect(callback)
+
+    return timer
 
 
 def convert_img_to_qt(img_size, img_url, is_remote=True):

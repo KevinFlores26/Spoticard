@@ -1,6 +1,6 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation
 
 from utils.utils import (
@@ -44,18 +44,13 @@ class MusicCardWindow(QtWidgets.QMainWindow):
         self.move(self.screen_geo.x(), self.screen_geo.y())
 
         self.card = MusicCard(self)
-        self.setCentralWidget(self.card)
+        self.card.setParent(self)
         self.card.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
 
 
 class MusicCard(QtWidgets.QFrame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.previous_track_id = None
-        self.previous_is_playing = None
-
-        self.is_spotify_turn_on = True
-        self.warning_card_shown = False
         self.showing_card = False
 
         # Main layout
@@ -107,7 +102,6 @@ class MusicCard(QtWidgets.QFrame):
         # Animations
         self.slide_in_animation = QPropertyAnimation(self, b"pos")
         self.slide_out_animation = QPropertyAnimation(self, b"pos")
-        self.fade_out_animation = QPropertyAnimation(self, b"windowOpacity")
 
         self.animations = MusicCardAnimations(self)
 
@@ -117,15 +111,11 @@ class MusicCard(QtWidgets.QFrame):
         self.timeline.frameChanged.connect(self.animations.start_hide_card)
 
         self.updater = UpdateHandler(self)
-        self.updater.update_card(sp)
+        self.updater.update_card()
 
-    def update_call(self, current_track):
-        QtCore.QTimer.singleShot(0, lambda: self.updater.update_card_properties(current_track))
-
-    def create_timeline(self):
-        self.timeline = QTimeLine(get_pr("total_card_dur"))
-        self.timeline.setFrameRange(0, 100)
-        self.timeline.frameChanged.connect(self.animations.start_hide_card)
+    @staticmethod
+    def get_sp():
+        return sp
 
 
 if __name__ == "__main__":

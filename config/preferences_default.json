@@ -29,5 +29,5 @@
   "close_animation_dur": 2000,
   "close_animation_easing": "InBack",
   "card_update": 1000,
-  "screen_index": 1
+  "screen_index": 0
 }
