@@ -1,19 +1,14 @@
-import spotipy, requests
+import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation
-from PIL import Image
-from io import BytesIO
 
 from utils.utils import (
     load_json,
     get_current_theme,
-    get_image_color,
-    get_current_playback,
-    get_total_width,
 )
 from music_card.animations import MusicCardAnimations
-from music_card.update_handler import UpdateHandler
+from music_card.handlers import UpdateHandler, ScreenHandler
 from config.config import params as p
 from config.config import urls
 
@@ -35,9 +30,27 @@ theme = get_current_theme(def_prefs, user_prefs, themes)
 get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
-class MusicCard(QtWidgets.QWidget):
-    def __init__(self):
+class MusicCardWindow(QtWidgets.QMainWindow):
+    def __init__(self, app):
         super().__init__()
+
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        self.screen = ScreenHandler(self, app)
+        self.screen_geo = self.screen.get_screen_geometry(get_pr("screen_index"))
+
+        self.setFixedSize(self.screen_geo.width(), self.screen_geo.height())
+        self.move(self.screen_geo.x(), self.screen_geo.y())
+
+        self.card = MusicCard(self)
+        self.setCentralWidget(self.card)
+        self.card.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
+
+
+class MusicCard(QtWidgets.QFrame):
+    def __init__(self, parent):
+        super().__init__(parent)
         self.previous_track_id = None
         self.previous_is_playing = None
 
@@ -46,14 +59,9 @@ class MusicCard(QtWidgets.QWidget):
         self.showing_card = False
 
         # Main layout
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
-        self.setStyleSheet(f"background-color: {theme.get('bg_color', '#202020')};")
-        self.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
-        self.setMinimumSize(get_pr("min_card_width"), get_pr("min_card_height"))
-        self.setMaximumSize(get_pr("min_card_width") * 4, get_pr("min_card_height"))
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
-        )
+        self.setStyleSheet(
+            f"background-color: {theme.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;")
+        self.setFixedSize(get_pr("min_card_width"), get_pr("min_card_height"))
 
         self.card_layout = QtWidgets.QHBoxLayout(self)
         self.card_layout.setContentsMargins(
@@ -85,14 +93,12 @@ class MusicCard(QtWidgets.QWidget):
         self.info_layout = QtWidgets.QVBoxLayout()
         self.info_layout.setAlignment(Qt.AlignVCenter)
 
+        label_style = lambda \
+            label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')}"
         self.title_label = QtWidgets.QLabel("", self)
-        self.title_label.setStyleSheet(
-            f"color: {theme.get('title_font_color')}; font-size: {get_pr('title_font_size')}px; font-family: {get_pr('title_font')}"
-        )
+        self.title_label.setStyleSheet(label_style("title"))
         self.artist_label = QtWidgets.QLabel("", self)
-        self.artist_label.setStyleSheet(
-            f"color: {theme.get('artist_font_color')}; font-size: {get_pr('artist_font_size')}px; font-family: {get_pr('artist_font')}"
-        )
+        self.artist_label.setStyleSheet(label_style("artist"))
 
         self.info_layout.addWidget(self.title_label)
         self.info_layout.addWidget(self.artist_label)
@@ -124,6 +130,6 @@ class MusicCard(QtWidgets.QWidget):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
-    card = MusicCard()
-    card.show()
+    card_window = MusicCardWindow(app)
+    card_window.show()
     app.exec_()

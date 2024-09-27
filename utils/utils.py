@@ -1,5 +1,6 @@
 import os, json, requests, darkdetect, time
-from PyQt5 import QtWidgets
+from PIL import Image
+from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import QEasingCurve as Ease
 from io import BytesIO
 from colorthief import ColorThief
@@ -75,11 +76,15 @@ def get_image_color(image_url, accent=True):
     return "#%02x%02x%02x" % dominant_color
 
 
-def load_json(file_path):
-    # Loads a JSON file and returns its key: value as a dictionary
-
+def get_relative_path(file_path):
     project_root = os.path.dirname(os.path.dirname(__file__))
     relative_path = os.path.join(project_root, file_path)
+    return relative_path
+
+
+def load_json(file_path):
+    # Loads a JSON file and returns its key: value as a dictionary
+    relative_path = get_relative_path(file_path)
 
     if os.path.exists(relative_path) and os.path.getsize(relative_path) > 0:
         with open(relative_path, "r") as f:
@@ -109,6 +114,32 @@ def get_current_playback(sp, retries=3, delay=5):
             return None
 
     return None
+
+
+def convert_img_to_qt(img_size, img_url, is_remote=True):
+    try:
+        if is_remote:
+            response = requests.get(img_url)
+            img_data = response.content
+            img = Image.open(BytesIO(img_data))
+        else:
+            img_path = get_relative_path(img_url)
+            img = Image.open(img_path)
+
+        img = img.resize(
+            (img_size, img_size),
+            Image.Resampling.LANCZOS,
+        )
+        img = img.convert("RGBA")
+
+        data = img.tobytes("raw", "RGBA")
+        qimage = QtGui.QImage(data, img.width, img.height, QtGui.QImage.Format_RGBA8888)
+        pixmap = QtGui.QPixmap.fromImage(qimage)
+        return pixmap
+
+    except Exception as e:
+        print(f"Error converting image: {e}")
+        return None
 
 
 def get_total_width(layout, spacing=10, min_width=0):

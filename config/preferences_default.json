@@ -12,6 +12,7 @@
   "end_y_pos": 30,
   "min_card_width": 350,
   "min_card_height": 120,
+  "card_radius": 5,
   "card_l_margin": 0,
   "card_t_margin": 0,
   "card_r_margin": 40,
@@ -27,5 +28,6 @@
   "open_animation_easing": "OutBack",
   "close_animation_dur": 2000,
   "close_animation_easing": "InBack",
-  "card_update": 1000
+  "card_update": 1000,
+  "screen_index": 1
 }

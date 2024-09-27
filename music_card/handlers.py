@@ -1,13 +1,10 @@
-import requests
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PIL import Image
-from io import BytesIO
-
+from PyQt5 import QtCore
 from utils.utils import (
     load_json,
     get_image_color,
     get_current_playback,
     get_total_width,
+    convert_img_to_qt
 )
 
 def_prefs = load_json(r"config\preferences_default.json")
@@ -15,6 +12,7 @@ user_prefs = load_json(r"config\preferences_user.json")
 
 # Lambda get preferences (user and default as fallback)
 get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
+
 
 class UpdateHandler:
     def __init__(self, parent):
@@ -36,14 +34,13 @@ class UpdateHandler:
             if not self.is_spotify_turn_on and not self.warning_card_shown:
                 self.parent.setWindowOpacity(1)
 
-                self.parent.bar.setStyleSheet(f"background: {get_pr('custom_accent')};")
-                self.parent.title_label.setText("Not playing")
-                self.parent.artist_label.setText(
-                    "Turn on Spotify or check your internet connection"
-                )
-                self.parent.img_label.clear()
+                title = "Not playing"
+                artist = "Turn on Spotify or check your internet connection"
+                pixmap = convert_img_to_qt(get_pr("song_image_size"), r"resources\img\warning.png", False)
 
-                self.parent.show_card()
+                # Set properties
+                self.card_filler(title, artist, pixmap)
+                self.parent.animations.show_card()
 
                 self.warning_card_shown = True
                 self.previous_track_id = None
@@ -63,6 +60,7 @@ class UpdateHandler:
                 self.previous_track_id = current_track_id
                 self.previous_is_playing = is_playing
 
+                # Verify if the card is already showing (if so, hide it), then execute update_card_properties
                 self.parent.animations.on_change(current_track)
 
             # Update the previous state
@@ -72,34 +70,37 @@ class UpdateHandler:
         QtCore.QTimer.singleShot(1000, lambda: self.update_card(sp))
 
     def update_card_properties(self, current_track):
-        self.parent.setWindowOpacity(1)
-
-        self.parent.title_label.setText(current_track["name"])
-        self.parent.artist_label.setText(
-            ", ".join([artist["name"] for artist in current_track["artists"]])
-        )
+        title = current_track["name"]
+        artist = current_track["artists"][0]["name"]
 
         # Get and show the song's image
         img_url = current_track["album"]["images"][0]["url"]
-        response = requests.get(img_url)
-        img_data = response.content
-        img = Image.open(BytesIO(img_data))
-        img = img.resize(
-            (get_pr("song_image_size"), get_pr("song_image_size")),
-            Image.Resampling.LANCZOS,
-        )
-        img = img.convert("RGBA")
-
-        data = img.tobytes("raw", "RGBA")
-        qimage = QtGui.QImage(
-            data, img.width, img.height, QtGui.QImage.Format_RGBA8888
-        )
-        pixmap = QtGui.QPixmap.fromImage(qimage)
-        self.parent.img_label.setPixmap(pixmap)
-
-        # Apply dominant color to the vertical bar
+        pixmap = convert_img_to_qt(get_pr("song_image_size"), img_url)
         image_color = get_image_color(img_url)
+
+        # Set properties
+        self.card_filler(title, artist, pixmap, image_color)
+        QtCore.QTimer.singleShot(0, self.parent.animations.show_card)
+
+    def card_filler(
+            self,
+            title="No title",
+            artist="No artist",
+            pixmap=None,
+            image_color=get_pr("custom_accent"),
+    ):
+        self.parent.title_label.setText(title)
+        self.parent.artist_label.setText(artist)
         self.parent.bar.setStyleSheet(f"background-color: {image_color};")
+
+        if pixmap:
+            try:
+                self.parent.img_label.setPixmap(pixmap)
+            except Exception as e:
+                print(f"Error: Image not found or not supported ({e})")
+                self.parent.img_label.clear()
+        else:
+            self.parent.img_label.clear()
 
         # Set the card width manually
         total_width = get_total_width(
@@ -107,5 +108,23 @@ class UpdateHandler:
         )
         self.parent.setFixedWidth(total_width)
 
-        QtWidgets.QApplication.processEvents()
-        QtCore.QTimer.singleShot(0, self.parent.animations.show_card)
+
+class ScreenHandler:
+    def __init__(self, parent, app):
+        self.parent = parent
+        self.screens = app.screens()
+
+    def get_screen_geometry(self, screen_index=0):
+        index = self.verify_screen_index(screen_index)
+        screen = self.screens[index]
+        screen_geometry = screen.geometry()
+
+        return screen_geometry
+
+    def verify_screen_index(self, screen_index=0):
+        if screen_index > (len(self.screens) - 1):
+            return len(self.screens) - 1
+        elif screen_index < 0:
+            return 0
+
+        return screen_index
