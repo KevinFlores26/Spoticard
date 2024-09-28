@@ -1,15 +1,18 @@
-from PyQt5 import QtGui, QtCore
+from PyQt5 import QtGui
 from utils.utils import (
     load_json,
     get_image_color,
     get_current_playback,
     get_total_width,
-    convert_img_to_qt,
+    convert_img_to_pixmap,
     set_timer,
+    get_current_theme,
 )
 
 def_prefs = load_json(r"config\preferences_default.json")
 user_prefs = load_json(r"config\preferences_user.json")
+themes = load_json(r"config\themes.json")
+theme = get_current_theme(def_prefs, user_prefs, themes)
 
 # Lambda get preferences (user and default as fallback)
 get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
@@ -36,7 +39,7 @@ class UpdateHandler:
         if current_playback is None and not self.warning_card_shown:
             title = "Not playing"
             artist = "Turn on Spotify or check your internet connection"
-            pixmap = convert_img_to_qt(
+            pixmap = convert_img_to_pixmap(
                 get_pr("song_image_size"), r"resources\img\warning.png", False
             )
 
@@ -74,7 +77,7 @@ class UpdateHandler:
         title="No Title",
         artist="No Artist",
         pixmap=None,
-        image_color=get_pr("custom_accent"),
+        image_color=get_pr("custom_color"),
     ):
         if current_track:
             title = current_track["name"]
@@ -82,8 +85,10 @@ class UpdateHandler:
 
             # Get and show the song's image
             img_url = current_track["album"]["images"][0]["url"]
-            pixmap = convert_img_to_qt(get_pr("song_image_size"), img_url)
-            image_color = get_image_color(img_url)
+            pixmap = convert_img_to_pixmap(get_pr("song_image_size"), img_url)
+
+            if not get_pr("only_custom_color"):
+                image_color = get_image_color(img_url, theme.get("bg_color"), get_pr("dominant_color"))
 
         # Set properties
         self.parent.title_label.setText(title)

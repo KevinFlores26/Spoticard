@@ -1,7 +1,8 @@
 {
   "theme": "adaptive",
-  "accent": true,
-  "custom_accent": "#1ed760",
+  "dominant_color": false,
+  "only_custom_color": false,
+  "custom_color": "#1ed760",
   "color_bar_order": 0,
   "card_order": 1,
   "info_order": 2,

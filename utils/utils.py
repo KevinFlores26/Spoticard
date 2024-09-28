@@ -1,4 +1,4 @@
-import os, json, requests, darkdetect, time
+import os, json, requests, darkdetect, time, math
 from PIL import Image
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import QEasingCurve as Ease
@@ -59,21 +59,46 @@ def get_current_theme(def_prefs, user_prefs, themes):
         return themes.get("light")
 
 
-def get_image_color(image_url, accent=True):
+def get_image_color(image_url, card_color, dominant=True):
     # Get current song's image color
     response = requests.get(image_url)
     img_data = BytesIO(response.content)
     color_thief = ColorThief(img_data)
 
-    if accent:
-        palette = color_thief.get_palette(color_count=3, quality=1)
-        if len(palette) > 1:
-            accent_color = palette[1]
-            return "#%02x%02x%02x" % accent_color
-
-    # If there isn't more than 1 color, it'll use predominant color instead
+    palette = color_thief.get_palette(color_count=3, quality=1)
     dominant_color = color_thief.get_color(quality=1)
+    accent_color = palette[1]
+
+    if len(palette) > 1:
+        rgb_card_color = hex_to_rgb(card_color)
+        palette.pop(0) if dominant else None
+
+        for color in palette:
+            if color_distance(color, rgb_card_color) > 50:
+                accent_color = color
+                break
+        return "#%02x%02x%02x" % accent_color
+
+    if dominant and len(palette) >= 1:
+        return "#%02x%02x%02x" % dominant_color
+
+    # If there isn't more than 1 color, it'll use dominant color instead
     return "#%02x%02x%02x" % dominant_color
+
+
+def hex_to_rgb(hex_color):
+    if not hex_color.startswith("#"):
+        return hex_color
+
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def color_distance(color1, color2):
+    r_diff = color1[0] - color2[0]
+    g_diff = color1[1] - color2[1]
+    b_diff = color1[2] - color2[2]
+    return math.sqrt(r_diff ** 2 + g_diff ** 2 + b_diff ** 2)
 
 
 def get_relative_path(file_path):
@@ -123,7 +148,7 @@ def set_timer(callback):
     return timer
 
 
-def convert_img_to_qt(img_size, img_url, is_remote=True):
+def convert_img_to_pixmap(img_size, img_url, is_remote=True, radius=5):
     try:
         if is_remote:
             response = requests.get(img_url)
@@ -142,11 +167,34 @@ def convert_img_to_qt(img_size, img_url, is_remote=True):
         data = img.tobytes("raw", "RGBA")
         qimage = QtGui.QImage(data, img.width, img.height, QtGui.QImage.Format_RGBA8888)
         pixmap = QtGui.QPixmap.fromImage(qimage)
+
+        if radius > 0:
+            pixmap = apply_rounded_corners(pixmap, radius)
+
         return pixmap
 
     except Exception as e:
         print(f"Error converting image: {e}")
         return None
+
+
+def apply_rounded_corners(pixmap, radius):
+    size = pixmap.size()
+    rounded_pixmap = QtGui.QPixmap(size)
+    rounded_pixmap.fill(QtCore.Qt.transparent)
+
+    painter = QtGui.QPainter(rounded_pixmap)
+    painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+    # Set rounded corners
+    path = QtGui.QPainterPath()
+    path.addRoundedRect(QtCore.QRectF(0, 0, size.width(), size.height()), radius, radius)
+    painter.setClipPath(path)
+
+    painter.drawPixmap(0, 0, pixmap)
+    painter.end()
+
+    return rounded_pixmap
 
 
 def get_total_width(layout, spacing=10, min_width=0):
