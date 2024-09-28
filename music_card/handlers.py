@@ -1,10 +1,11 @@
+from PyQt5 import QtGui, QtCore
 from utils.utils import (
     load_json,
     get_image_color,
     get_current_playback,
     get_total_width,
     convert_img_to_qt,
-    set_timer
+    set_timer,
 )
 
 def_prefs = load_json(r"config\preferences_default.json")
@@ -21,39 +22,30 @@ class UpdateHandler:
 
         self.previous_track_id = None
         self.previous_is_playing = None
-
-        self.is_spotify_turn_on = True
         self.warning_card_shown = False
-
         self.update_timer = set_timer(self.update_card)
 
     def update_card(self):
         if self.update_timer.isActive():
             self.update_timer.stop()
-
         if self.parent.showing_card:
             self.update_timer.stop()
             return
 
         current_playback = get_current_playback(self.sp)
+        if current_playback is None and not self.warning_card_shown:
+            title = "Not playing"
+            artist = "Turn on Spotify or check your internet connection"
+            pixmap = convert_img_to_qt(
+                get_pr("song_image_size"), r"resources\img\warning.png", False
+            )
 
-        if current_playback is None:
-            self.is_spotify_turn_on = False
-
-            if not self.is_spotify_turn_on and not self.warning_card_shown:
-                title = "Not playing"
-                artist = "Turn on Spotify or check your internet connection"
-                pixmap = convert_img_to_qt(get_pr("song_image_size"), r"resources\img\warning.png", False)
-
-                # Set properties
-                self.card_filler(title, artist, pixmap)
-                self.parent.animations.show_card()
-
-                self.warning_card_shown = True
-                self.previous_track_id = None
+            # Set properties
+            self.update_card_properties(None, title, artist, pixmap)
+            self.warning_card_shown = True
+            self.previous_track_id = None
 
         elif current_playback:
-            self.is_spotify_turn_on = True
             self.warning_card_shown = False
 
             current_track = current_playback["item"]
@@ -76,44 +68,87 @@ class UpdateHandler:
 
         self.update_timer.start(1000)
 
-    def update_card_properties(self, current_track):
-        title = current_track["name"]
-        artist = current_track["artists"][0]["name"]
+    def update_card_properties(
+        self,
+        current_track,
+        title="No Title",
+        artist="No Artist",
+        pixmap=None,
+        image_color=get_pr("custom_accent"),
+    ):
+        if current_track:
+            title = current_track["name"]
+            artist = current_track["artists"][0]["name"]
 
-        # Get and show the song's image
-        img_url = current_track["album"]["images"][0]["url"]
-        pixmap = convert_img_to_qt(get_pr("song_image_size"), img_url)
-        image_color = get_image_color(img_url)
+            # Get and show the song's image
+            img_url = current_track["album"]["images"][0]["url"]
+            pixmap = convert_img_to_qt(get_pr("song_image_size"), img_url)
+            image_color = get_image_color(img_url)
 
         # Set properties
-        self.card_filler(title, artist, pixmap, image_color)
-        self.parent.animations.show_card()
-
-    def card_filler(
-            self,
-            title="No title",
-            artist="No artist",
-            pixmap=None,
-            image_color=get_pr("custom_accent"),
-    ):
         self.parent.title_label.setText(title)
         self.parent.artist_label.setText(artist)
+        self.set_pixmap(pixmap)
         self.parent.bar.setStyleSheet(f"background-color: {image_color};")
-
-        if pixmap:
-            try:
-                self.parent.img_label.setPixmap(pixmap)
-            except Exception as e:
-                print(f"Error: Image not found or not supported ({e})")
-                self.parent.img_label.clear()
-        else:
-            self.parent.img_label.clear()
 
         # Set the card width manually
         total_width = get_total_width(
             self.parent.card_layout, get_pr("card_spacing"), get_pr("min_card_width")
         )
         self.parent.setFixedWidth(total_width)
+
+        # Update valid card's coordinates
+        rect = self.parent.geometry()
+        coords = {
+            "upper_left": [get_pr("end_x_pos"), get_pr("end_y_pos")],
+            "upper_right": [get_pr("end_x_pos") + rect.width(), get_pr("end_y_pos")],
+            "lower_left": [get_pr("end_x_pos"), get_pr("end_y_pos") + rect.height()],
+            "lower_right": [
+                get_pr("end_x_pos") + rect.width(),
+                get_pr("end_y_pos") + rect.height(),
+            ],
+        }
+        self.parent.coords = coords
+        self.parent.animations.show_card()
+
+    def set_pixmap(self, pixmap):
+        if not pixmap:
+            self.parent.img_label.clear()
+            return
+
+        try:
+            self.parent.img_label.setPixmap(pixmap)
+        except Exception as e:
+            print(f"Error: Image not found or not supported ({e})")
+            self.parent.img_label.clear()
+
+
+class CursorHandler:
+    def __init__(self, parent):
+        self.parent = parent
+        self.hover_timer = set_timer(self.parent.call_leave_event)
+
+    def on_enter(self):
+        if self.parent.is_faded_out: return
+
+        self.parent.is_faded_out = True
+        self.parent.animations.fade_out()
+
+    def on_leave(self):
+        if not self.parent.is_faded_out:
+            self.hover_timer.stop()
+            return
+
+        c_pos = QtGui.QCursor.pos()  # cursor position
+        u_left = self.parent.coords["upper_left"]
+        l_right = self.parent.coords["lower_right"]
+
+        # Check if the card left the screen
+        if c_pos.x() < u_left[0] or c_pos.y() < u_left[1] or c_pos.x() > l_right[0] or c_pos.y() > l_right[1]:
+            self.parent.is_faded_out = False
+            self.parent.animations.fade_in()
+        else:
+            self.hover_timer.start(100)
 
 
 class ScreenHandler:

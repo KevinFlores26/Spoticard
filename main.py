@@ -1,14 +1,15 @@
 import spotipy
+from PyQt5.QtWidgets import QGraphicsOpacityEffect
 from spotipy.oauth2 import SpotifyOAuth
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation
 
 from utils.utils import (
     load_json,
-    get_current_theme,
+    get_current_theme, set_timer,
 )
 from music_card.animations import MusicCardAnimations
-from music_card.handlers import UpdateHandler, ScreenHandler
+from music_card.handlers import UpdateHandler, ScreenHandler, CursorHandler
 from config.config import params as p
 from config.config import urls
 
@@ -52,10 +53,14 @@ class MusicCard(QtWidgets.QFrame):
     def __init__(self, parent):
         super().__init__(parent)
         self.showing_card = False
+        self.is_faded_out = False
+        self.coords = None
+        self.setMouseTracking(True)
 
         # Main layout
         self.setStyleSheet(
-            f"background-color: {theme.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;")
+            f"background-color: {theme.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;"
+        )
         self.setFixedSize(get_pr("min_card_width"), get_pr("min_card_height"))
 
         self.card_layout = QtWidgets.QHBoxLayout(self)
@@ -70,9 +75,7 @@ class MusicCard(QtWidgets.QFrame):
         # Color bar
         self.bar = QtWidgets.QWidget(self)
         self.bar.setFixedSize(60, self.height())
-        self.bar.setStyleSheet(
-            f"background: {get_pr('custom_accent')};"
-        )  # Accent color fallback
+        self.bar.setStyleSheet(f"background: {get_pr('custom_accent')};")
         self.card_layout.addWidget(self.bar, get_pr("color_bar_order"))
         self.card_layout.addSpacing(get_pr("card_spacing"))
 
@@ -88,8 +91,9 @@ class MusicCard(QtWidgets.QFrame):
         self.info_layout = QtWidgets.QVBoxLayout()
         self.info_layout.setAlignment(Qt.AlignVCenter)
 
-        label_style = lambda \
-            label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')}"
+        label_style = (
+            lambda label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')}"
+        )
         self.title_label = QtWidgets.QLabel("", self)
         self.title_label.setStyleSheet(label_style("title"))
         self.artist_label = QtWidgets.QLabel("", self)
@@ -103,6 +107,13 @@ class MusicCard(QtWidgets.QFrame):
         self.slide_in_animation = QPropertyAnimation(self, b"pos")
         self.slide_out_animation = QPropertyAnimation(self, b"pos")
 
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.opacity_effect.setOpacity(1.0)
+        self.setGraphicsEffect(self.opacity_effect)
+        self.setAutoFillBackground(True)
+
+        self.fade_in_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_out_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.animations = MusicCardAnimations(self)
 
         # How long will the card last in screen
@@ -110,12 +121,28 @@ class MusicCard(QtWidgets.QFrame):
         self.timeline.setFrameRange(0, 100)
         self.timeline.frameChanged.connect(self.animations.start_hide_card)
 
+        # Handlers
         self.updater = UpdateHandler(self)
         self.updater.update_card()
+
+        self.cursor_handler = CursorHandler(self)
 
     @staticmethod
     def get_sp():
         return sp
+
+    # Card events
+    def enterEvent(self, event):
+        self.cursor_handler.on_enter()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.cursor_handler.on_leave()
+        super().leaveEvent(event)
+
+    def call_leave_event(self):
+        q_event = QtCore.QEvent(QtCore.QEvent.Leave)
+        self.leaveEvent(q_event)
 
 
 if __name__ == "__main__":
