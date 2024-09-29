@@ -1,10 +1,9 @@
 from PyQt5 import QtGui
-from utils.utils import load_json, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme
+from utils.utils import load_json, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
 
 def_prefs = load_json(r"config\preferences_default.json")
 user_prefs = load_json(r"config\preferences_user.json")
 themes = load_json(r"config\themes.json")
-theme = get_current_theme(def_prefs, user_prefs, themes)
 
 # Lambda get preferences (user and default as fallback)
 get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
@@ -20,6 +19,7 @@ class UpdateHandler:
     self.warning_card_shown = False
     self.update_timer = set_timer(self.update_card)
 
+  # Main logic to show the card
   def update_card(self):
     if self.update_timer.isActive():
       self.update_timer.stop()
@@ -27,8 +27,20 @@ class UpdateHandler:
       self.update_timer.stop()
       return
 
+    theme = get_current_theme(def_prefs, user_prefs, themes)
     current_playback = get_current_playback(self.sp)
-    if current_playback is None and not self.warning_card_shown:
+
+    # Set theme if it was changed and show the card
+    if self.parent.current_theme.get("THEME_NAME") != theme.get("THEME_NAME"):
+      card_labels = [self.parent.title_label, self.parent.artist_label]
+      set_theme(self.parent, card_labels, theme)
+      self.parent.current_theme = theme
+
+      current_track = current_playback["item"]
+      self.update_card_properties(current_track)
+
+    # Show warning card if Spotify is not connected
+    elif current_playback is None and not self.warning_card_shown:
       title = "Not playing"
       artist = "Turn on Spotify or check your internet connection"
       pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
@@ -38,6 +50,7 @@ class UpdateHandler:
       self.warning_card_shown = True
       self.previous_track_id = None
 
+    # Show the card with the current track (normal case)
     elif current_playback:
       self.warning_card_shown = False
 
@@ -79,7 +92,7 @@ class UpdateHandler:
       pixmap = convert_img_to_pixmap(get_pr("image_size"), img_url, True, get_pr("image_radius"))
 
       if not get_pr("only_custom_color"):
-        image_color = get_image_color(img_url, theme.get("bg_color"), get_pr("dominant_color"))
+        image_color = get_image_color(img_url, self.parent.current_theme.get("bg_color"), get_pr("dominant_color"))
 
     # Set properties
     self.parent.title_label.setText(title)

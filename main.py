@@ -48,6 +48,7 @@ class MusicCardWindow(QtWidgets.QMainWindow):
 class MusicCard(QtWidgets.QFrame):
   def __init__(self, parent):
     super().__init__(parent)
+    self.current_theme = theme
     self.showing_card = False
     self.is_faded_out = False
     self.coords = None
@@ -83,7 +84,7 @@ class MusicCard(QtWidgets.QFrame):
     self.info_layout = QtWidgets.QVBoxLayout()
     self.info_layout.setAlignment(Qt.AlignVCenter)
 
-    label_style = (lambda label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')}")
+    label_style = (lambda label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')};")
     self.title_label = QtWidgets.QLabel("", self)
     self.title_label.setStyleSheet(label_style("title"))
     self.artist_label = QtWidgets.QLabel("", self)

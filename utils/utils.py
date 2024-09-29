@@ -1,6 +1,7 @@
-import os, json, requests, darkdetect, time
+import os, json, requests, darkdetect, time, re
 from PIL import Image
 from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtGui import QColor
 from io import BytesIO
 from colorthief import ColorThief
 from utils.misc import hex_to_rgb, color_distance, get_relative_path, apply_rounded_corners
@@ -63,6 +64,29 @@ def get_current_theme(def_prefs, user_prefs, themes):
     return themes.get("dark")
   else:
     return themes.get("light")
+
+
+def set_theme(card, card_labels, theme):
+  # Sets the theme of the card
+  card_style = change_stylesheet_property(card, "background-color", theme.get("bg_color"))
+  card.setStyleSheet(card_style)
+
+  title_style = change_stylesheet_property(card_labels[0], "color", theme.get("title_font_color"))
+  card_labels[0].setStyleSheet(title_style)
+
+  artist_style = change_stylesheet_property(card_labels[1], "color", theme.get("artist_font_color"))
+  card_labels[1].setStyleSheet(artist_style)
+
+
+def change_stylesheet_property(element, prop, value):
+  # Changes or adds a specific stylesheet property of an element
+  current_stylesheet = element.styleSheet()
+  style = f"{prop}: {value};"
+
+  if re.search(rf'\b{prop}\b:.*?;', current_stylesheet):
+    return re.sub(rf'{prop}:.*?;', style, current_stylesheet)
+  else:
+    return current_stylesheet + style
 
 
 # Image functions

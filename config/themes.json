@@ -1,16 +1,19 @@
 {
   "dark": {
+    "THEME_NAME": "dark",
     "bg_color": "#202020",
     "title_font_color": "#c9c9c9",
     "artist_font_color": "#c9c9c9"
   },
   "light": {
+    "THEME_NAME": "light",
     "bg_color": "#f3f3f3",
     "title_font_color": "#1b1b1b",
     "artist_font_color": "#1b1b1b"
   },
 
   "user": {
+    "THEME_NAME": "user",
     "bg_color": "#202020",
     "title_font_color": "#c9c9c9",
     "artist_font_color": "#c9c9c9"
