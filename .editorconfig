@@ -1,0 +1,14 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = crlf
+charset = utf-8
+max_line_length = off
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{png,jpg,jpeg,gif,ico,svg}]
+trim_trailing_whitespace = false
+insert_final_newline = false
