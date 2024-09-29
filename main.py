@@ -1,13 +1,10 @@
 import spotipy
 from PyQt5.QtWidgets import QGraphicsOpacityEffect
 from spotipy.oauth2 import SpotifyOAuth
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation
 
-from utils.utils import (
-  load_json,
-  get_current_theme, set_timer,
-)
+from utils.utils import load_json, get_current_theme
 from music_card.animations import MusicCardAnimations
 from music_card.handlers import UpdateHandler, ScreenHandler, CursorHandler
 from config.config import params as p
@@ -40,7 +37,6 @@ class MusicCardWindow(QtWidgets.QMainWindow):
 
     self.screen = ScreenHandler(self, app)
     self.screen_geo = self.screen.get_screen_geometry(get_pr("screen_index"))
-
     self.setFixedSize(self.screen_geo.width(), self.screen_geo.height())
     self.move(self.screen_geo.x(), self.screen_geo.y())
 
@@ -58,9 +54,7 @@ class MusicCard(QtWidgets.QFrame):
     self.setMouseTracking(True)
 
     # Main layout
-    self.setStyleSheet(
-      f"background-color: {theme.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;"
-    )
+    self.setStyleSheet(f"background-color: {theme.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;")
     self.setFixedSize(get_pr("min_card_width"), get_pr("min_card_height"))
 
     self.card_layout = QtWidgets.QHBoxLayout(self)
@@ -81,9 +75,7 @@ class MusicCard(QtWidgets.QFrame):
 
     # Card's image
     self.img_label = QtWidgets.QLabel(self)
-    self.img_label.setFixedSize(
-      get_pr("song_image_size"), get_pr("song_image_size")
-    )
+    self.img_label.setFixedSize(get_pr("image_size"), get_pr("image_size"))
     self.card_layout.addWidget(self.img_label, get_pr("card_order"))
     self.card_layout.addSpacing(get_pr("card_spacing"))
 
@@ -91,9 +83,7 @@ class MusicCard(QtWidgets.QFrame):
     self.info_layout = QtWidgets.QVBoxLayout()
     self.info_layout.setAlignment(Qt.AlignVCenter)
 
-    label_style = (
-      lambda label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')}"
-    )
+    label_style = (lambda label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')}")
     self.title_label = QtWidgets.QLabel("", self)
     self.title_label.setStyleSheet(label_style("title"))
     self.artist_label = QtWidgets.QLabel("", self)
@@ -141,10 +131,12 @@ class MusicCard(QtWidgets.QFrame):
     super().leaveEvent(event)
 
   def call_leave_event(self):
+    # Manual call to leave event
     q_event = QtCore.QEvent(QtCore.QEvent.Leave)
     self.leaveEvent(q_event)
 
 
+# Run the app
 if __name__ == "__main__":
   app = QtWidgets.QApplication([])
   card_window = MusicCardWindow(app)

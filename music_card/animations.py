@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QEasingCurve, QPoint, QTimeLine, QPropertyAnimation
-from utils.utils import load_json, EASING_FUNCTIONS
+from utils.utils import load_json
+from utils.misc import EASING_FUNCTIONS
 
 def_prefs = load_json(r"config\preferences_default.json")
 user_prefs = load_json(r"config\preferences_user.json")
@@ -17,15 +18,11 @@ class MusicCardAnimations:
     # Set animations properties
     self.slide_in_animation = self.parent.slide_in_animation
     self.slide_in_animation.setDuration(get_pr("open_animation_dur"))
-    self.slide_in_animation.setEasingCurve(
-      EASING_FUNCTIONS.get(get_pr("open_animation_easing"), QEasingCurve.Linear)
-    )
+    self.slide_in_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("open_animation_easing"), QEasingCurve.Linear))
 
     self.slide_out_animation = self.parent.slide_out_animation
     self.slide_out_animation.setDuration(get_pr("close_animation_dur"))
-    self.slide_out_animation.setEasingCurve(
-      EASING_FUNCTIONS.get(get_pr("close_animation_easing"), QEasingCurve.Linear)
-    )
+    self.slide_out_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("close_animation_easing"), QEasingCurve.Linear))
     self.slide_out_animation.finished.connect(self.reset_card_properties)
 
     self.fade_out_animation = self.parent.fade_out_animation

@@ -1,34 +1,40 @@
 {
-  "theme": "adaptive",
-  "dominant_color": false,
-  "only_custom_color": false,
-  "custom_color": "#1ed760",
+  "screen_index": 0,
+
   "color_bar_order": 0,
   "card_order": 1,
   "info_order": 2,
   "card_direction": "left",
+
   "start_x_pos": -500,
   "start_y_pos": 30,
   "end_x_pos": -50,
   "end_y_pos": 30,
   "min_card_width": 350,
   "min_card_height": 120,
+
   "card_radius": 5,
   "card_l_margin": 0,
   "card_t_margin": 0,
   "card_r_margin": 40,
   "card_b_margin": 0,
   "card_spacing": 20,
-  "song_image_size": 64,
+
+  "theme": "adaptive",
+  "dominant_color": false,
+  "only_custom_color": false,
+  "custom_color": "#1ed760",
+
+  "image_size": 64,
+  "image_radius": 5,
   "title_font_size": 24,
   "title_font": "'Tsunagi Gothic Black', 'Filson Pro', Helvetica",
   "artist_font_size": 12,
   "artist_font": "'Tsunagi Gothic Black', 'Filson Pro', Helvetica",
+
   "total_card_dur": 6000,
   "open_animation_dur": 1500,
   "open_animation_easing": "OutBack",
   "close_animation_dur": 2000,
-  "close_animation_easing": "InBack",
-  "card_update": 1000,
-  "screen_index": 0
+  "close_animation_easing": "InBack"
 }

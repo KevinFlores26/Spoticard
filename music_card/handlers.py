@@ -1,13 +1,5 @@
 from PyQt5 import QtGui
-from utils.utils import (
-  load_json,
-  get_image_color,
-  get_current_playback,
-  get_total_width,
-  convert_img_to_pixmap,
-  set_timer,
-  get_current_theme,
-)
+from utils.utils import load_json, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme
 
 def_prefs = load_json(r"config\preferences_default.json")
 user_prefs = load_json(r"config\preferences_user.json")
@@ -39,9 +31,7 @@ class UpdateHandler:
     if current_playback is None and not self.warning_card_shown:
       title = "Not playing"
       artist = "Turn on Spotify or check your internet connection"
-      pixmap = convert_img_to_pixmap(
-        get_pr("song_image_size"), r"resources\img\warning.png", False
-      )
+      pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
 
       # Set properties
       self.update_card_properties(None, title, artist, pixmap)
@@ -56,8 +46,9 @@ class UpdateHandler:
       current_track_id = current_track["id"]
 
       # Shows the card if the song changes, or it changes its state (pause to playing)
-      if current_track_id != self.previous_track_id or (
-        self.previous_is_playing == False and is_playing == True
+      if (
+        current_track_id != self.previous_track_id
+        or self.previous_is_playing == False and is_playing == True
       ):
         self.previous_track_id = current_track_id
         self.previous_is_playing = is_playing
@@ -85,12 +76,10 @@ class UpdateHandler:
 
       # Get and show the song's image
       img_url = current_track["album"]["images"][0]["url"]
-      pixmap = convert_img_to_pixmap(get_pr("song_image_size"), img_url)
+      pixmap = convert_img_to_pixmap(get_pr("image_size"), img_url, True, get_pr("image_radius"))
 
       if not get_pr("only_custom_color"):
-        image_color = get_image_color(
-          img_url, theme.get("bg_color"), get_pr("dominant_color")
-        )
+        image_color = get_image_color(img_url, theme.get("bg_color"), get_pr("dominant_color"))
 
     # Set properties
     self.parent.title_label.setText(title)
@@ -99,9 +88,7 @@ class UpdateHandler:
     self.parent.bar.setStyleSheet(f"background-color: {image_color};")
 
     # Set the card width manually
-    total_width = get_total_width(
-      self.parent.card_layout, get_pr("card_spacing"), get_pr("min_card_width")
-    )
+    total_width = get_total_width(self.parent.card_layout, get_pr("card_spacing"), get_pr("min_card_width"))
     self.parent.setFixedWidth(total_width)
 
     # Update valid card's coordinates
