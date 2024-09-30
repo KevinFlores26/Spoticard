@@ -51,9 +51,11 @@ def set_timer(callback):
   return timer
 
 
-def get_current_theme(def_prefs, user_prefs, themes):
+def get_current_theme(def_prefs, user_prefs, themes, theme_name=""):
   # Returns the theme selected by the user
-  theme = user_prefs.get("theme", def_prefs.get("theme"))
+  theme = theme_name
+  if theme_name == "":
+    theme = user_prefs.get("theme", def_prefs.get("theme"))
 
   if theme == "user": return themes.get("user")
   if theme == "dark": return themes.get("dark")

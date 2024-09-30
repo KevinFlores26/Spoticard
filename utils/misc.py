@@ -3,6 +3,8 @@ import os
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import QEasingCurve as Ease
 
+# Constants
+THEME_NAMES = ("light", "dark", "user", "adaptive")
 EASING_FUNCTIONS = {
   "InSine": Ease.InSine,
   "OutSine": Ease.OutSine,

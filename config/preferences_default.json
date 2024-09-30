@@ -1,5 +1,8 @@
 {
   "screen_index": 0,
+  "hide_on_click": true,
+  "visibility_shortcut": "ctrl+alt+0",
+  "theme_shortcut": "ctrl+alt+1",
 
   "color_bar_order": 0,
   "card_order": 1,

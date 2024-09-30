@@ -23,7 +23,7 @@ class MusicCardAnimations:
     self.slide_out_animation = self.parent.slide_out_animation
     self.slide_out_animation.setDuration(get_pr("close_animation_dur"))
     self.slide_out_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("close_animation_easing"), QEasingCurve.Linear))
-    self.slide_out_animation.finished.connect(self.reset_card_properties)
+    self.slide_out_animation.finished.connect(self.restart_loop)
 
     self.fade_out_animation = self.parent.fade_out_animation
     self.fade_out_animation.setDuration(300)
@@ -64,14 +64,10 @@ class MusicCardAnimations:
     self.slide_out_animation.setEndValue(end_pos)
     self.slide_out_animation.start()
 
-  def reset_card_properties(self):
-    # Reset card properties to avoid flickering or conflicts between animations
-    self.parent.timeline.stop()
-    self.fade_in()
-    self.parent.bar.setStyleSheet(f"background-color: {get_pr('custom_accent')};")
-    self.parent.title_label.setText("")
-    self.parent.artist_label.setText("")
-    self.parent.img_label.clear()
+  def restart_loop(self):
+    # Reset some properties and restart the loop
+    if self.parent.timeline.state() == QTimeLine.Running: self.parent.timeline.stop()
+    if self.parent.opacity_effect.opacity() == 0: self.fade_in()
 
     rect = self.parent.geometry()
     self.last_x = rect.x()
@@ -81,20 +77,16 @@ class MusicCardAnimations:
 
   # Card hover animations
   def fade_out(self):
-    if self.fade_in_animation.state() == QPropertyAnimation.Running:
-      self.fade_in_animation.stop()
-    if self.fade_out_animation.state() == QPropertyAnimation.Running:
-      self.fade_out_animation.stop()
+    if self.fade_in_animation.state() == QPropertyAnimation.Running: self.fade_in_animation.stop()
+    if self.fade_out_animation.state() == QPropertyAnimation.Running: self.fade_out_animation.stop()
 
     self.fade_out_animation.setStartValue(1.0)
     self.fade_out_animation.setEndValue(0)
     self.fade_out_animation.start()
 
   def fade_in(self):
-    if self.fade_in_animation.state() == QPropertyAnimation.Running:
-      self.fade_in_animation.stop()
-    if self.fade_out_animation.state() == QPropertyAnimation.Running:
-      self.fade_out_animation.stop()
+    if self.fade_in_animation.state() == QPropertyAnimation.Running: self.fade_in_animation.stop()
+    if self.fade_out_animation.state() == QPropertyAnimation.Running: self.fade_out_animation.stop()
 
     self.fade_in_animation.setStartValue(0)
     self.fade_in_animation.setEndValue(1.0)

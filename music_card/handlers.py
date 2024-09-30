@@ -27,7 +27,7 @@ class UpdateHandler:
       self.update_timer.stop()
       return
 
-    theme = get_current_theme(def_prefs, user_prefs, themes)
+    theme = get_current_theme(def_prefs, user_prefs, themes, self.parent.theme_name)
     current_playback = get_current_playback(self.sp)
 
     # Set theme if it was changed and show the card
@@ -90,6 +90,8 @@ class UpdateHandler:
     pixmap=None,
     image_color=get_pr("custom_color"),
   ):
+    self.reset_card_properties()
+
     if current_track:
       title = current_track["name"]
       artist = current_track["artists"][0]["name"]
@@ -133,22 +135,36 @@ class UpdateHandler:
       print(f"Error: Image not found or not supported ({e})")
       self.parent.img_label.clear()
 
+  def reset_card_properties(self):
+    if self.parent.opacity_effect.opacity() == 0:
+      self.parent.animations.fade_in()
 
-class CursorHandler:
+    self.parent.bar.setStyleSheet(f"background-color: {get_pr('custom_accent')};")
+    self.parent.title_label.setText("")
+    self.parent.artist_label.setText("")
+    self.parent.img_label.clear()
+
+
+class CursorAndKeyHandler:
   def __init__(self, parent):
     self.parent = parent
     self.hover_timer = set_timer(self.parent.call_leave_event)
 
-  def on_enter(self):
+  def on_enter_or_click(self):
     if self.parent.is_faded_out:
       return
 
     self.parent.is_faded_out = True
     self.parent.animations.fade_out()
 
-  def on_leave(self):
+  def on_leave(self, force_show=False):
     if not self.parent.is_faded_out:
       self.hover_timer.stop()
+      return
+
+    if force_show:
+      self.parent.is_faded_out = False
+      self.parent.animations.fade_in()
       return
 
     c_pos = QtGui.QCursor.pos()  # cursor position

@@ -1,12 +1,13 @@
-import spotipy
+import spotipy, keyboard
 from PyQt5.QtWidgets import QGraphicsOpacityEffect
 from spotipy.oauth2 import SpotifyOAuth
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation
+from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation, pyqtSignal
 
 from utils.utils import load_json, get_current_theme
+from utils.misc import THEME_NAMES
 from music_card.animations import MusicCardAnimations
-from music_card.handlers import UpdateHandler, ScreenHandler, CursorHandler
+from music_card.handlers import UpdateHandler, ScreenHandler, CursorAndKeyHandler
 from config.config import params as p
 from config.config import urls
 
@@ -29,8 +30,13 @@ get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
 class MusicCardWindow(QtWidgets.QMainWindow):
+  visibility_listener = pyqtSignal()
+  theme_listener = pyqtSignal()
+
   def __init__(self, app):
     super().__init__()
+    self.visibility_listener.connect(self.toggle_card_visibility)
+    self.theme_listener.connect(self.toggle_theme)
 
     self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
     self.setAttribute(Qt.WA_TranslucentBackground)
@@ -44,10 +50,31 @@ class MusicCardWindow(QtWidgets.QMainWindow):
     self.card.setParent(self)
     self.card.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
 
+  # Signal handlers
+  def toggle_card_visibility(self):
+    if not self.card.showing_card:
+      self.card.animations.show_card()
+    elif not self.card.is_faded_out and self.card.showing_card:
+      self.card.cursor_handler.on_enter_or_click()
+    elif self.card.is_faded_out:
+      self.card.cursor_handler.on_leave(True)
+
+  def toggle_theme(self):
+    index = THEME_NAMES.index(self.card.theme_name)
+    for name in THEME_NAMES:
+      if name != THEME_NAMES[index]: continue
+
+      next_theme_name = THEME_NAMES[(index + 1) % len(THEME_NAMES)]
+      self.card.theme_name = next_theme_name
+      return
+
+    self.card.theme_name = THEME_NAMES[0]
+
 
 class MusicCard(QtWidgets.QFrame):
   def __init__(self, parent):
     super().__init__(parent)
+    self.theme_name = get_pr("theme")
     self.current_theme = theme
     self.showing_card = False
     self.is_faded_out = False
@@ -114,9 +141,10 @@ class MusicCard(QtWidgets.QFrame):
 
     # Handlers
     self.updater = UpdateHandler(self)
-    self.updater.update_card()
+    self.cursor_handler = CursorAndKeyHandler(self)
 
-    self.cursor_handler = CursorHandler(self)
+    # Init
+    self.updater.update_card()
 
   @staticmethod
   def get_sp():
@@ -124,8 +152,9 @@ class MusicCard(QtWidgets.QFrame):
 
   # Card events
   def enterEvent(self, event):
-    self.cursor_handler.on_enter()
-    super().enterEvent(event)
+    if not get_pr("hide_on_click"):
+      self.cursor_handler.on_enter_or_click()
+      super().enterEvent(event)
 
   def leaveEvent(self, event):
     self.cursor_handler.on_leave()
@@ -136,10 +165,23 @@ class MusicCard(QtWidgets.QFrame):
     q_event = QtCore.QEvent(QtCore.QEvent.Leave)
     self.leaveEvent(q_event)
 
+  def mousePressEvent(self, event):
+    if get_pr("hide_on_click") and not self.is_faded_out:
+      self.cursor_handler.on_enter_or_click()
+
 
 # Run the app
 if __name__ == "__main__":
   app = QtWidgets.QApplication([])
   card_window = MusicCardWindow(app)
+
+
+  # Add shortcut listener @formatter:off
+  def on_shortcut_visibility(): card_window.visibility_listener.emit()
+  def on_shortcut_theme(): card_window.theme_listener.emit()
+
+  keyboard.add_hotkey(get_pr("visibility_shortcut"), on_shortcut_visibility)
+  keyboard.add_hotkey(get_pr("theme_shortcut"), on_shortcut_theme)
+
   card_window.show()
   app.exec_()
