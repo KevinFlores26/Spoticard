@@ -16,7 +16,7 @@ class UpdateHandler:
 
     self.previous_track_id = None
     self.previous_is_playing = None
-    self.warning_card_shown = False
+    self.alert_card_shown = False
     self.update_timer = set_timer(self.update_card)
 
   # Main logic to show the card
@@ -40,19 +40,26 @@ class UpdateHandler:
       self.update_card_properties(current_track)
 
     # Show warning card if Spotify is not connected
-    elif current_playback is None and not self.warning_card_shown:
+    elif current_playback is None and not self.alert_card_shown:
       title = "Not playing"
       artist = "Turn on Spotify or check your internet connection"
       pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
 
       # Set properties
       self.update_card_properties(None, title, artist, pixmap)
-      self.warning_card_shown = True
+      self.alert_card_shown = True
+      self.previous_track_id = None
+
+    # Show the card when the current track has not valid information
+    elif current_playback and current_playback["item"] is None and not self.alert_card_shown:
+      pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
+      self.update_card_properties(current_track=None, pixmap=pixmap)
+      self.alert_card_shown = True
       self.previous_track_id = None
 
     # Show the card with the current track (normal case)
-    elif current_playback:
-      self.warning_card_shown = False
+    elif current_playback and current_playback["item"]:
+      self.alert_card_shown = False
 
       current_track = current_playback["item"]
       is_playing = current_playback["is_playing"]
