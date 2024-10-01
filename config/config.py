@@ -9,7 +9,8 @@ params = {
   # (go to https://developer.spotify.com/dashboard if you don't have a spotify dev account)
   "CLIENT_ID": client_data.get("CLIENT_ID", None),
   "CLIENT_SECRET": client_data.get("CLIENT_SECRET", None),
-  "SCOPE": "user-read-playback-state",
+  # "SCOPE": "user-read-playback-state", # If you don't want to control playback through the app comment the line below and use this one
+  "SCOPE": "user-read-playback-state user-modify-playback-state user-read-currently-playing",  # Modify permission if you want to control playback through the app
 }
 
 urls = {

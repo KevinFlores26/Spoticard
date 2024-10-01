@@ -1,5 +1,8 @@
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtCore import QTimer
+
 from utils.utils import load_json, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
+from utils.misc import THEME_NAMES
 
 def_prefs = load_json(r"config\preferences_default.json")
 user_prefs = load_json(r"config\preferences_user.json")
@@ -21,11 +24,8 @@ class UpdateHandler:
 
   # Main logic to show the card
   def update_card(self):
-    if self.update_timer.isActive():
-      self.update_timer.stop()
-    if self.parent.showing_card:
-      self.update_timer.stop()
-      return
+    if self.update_timer.isActive(): self.update_timer.stop()
+    if self.parent.showing_card or self.parent.is_snoozing: return
 
     theme = get_current_theme(def_prefs, user_prefs, themes, self.parent.theme_name)
     current_playback = get_current_playback(self.sp)
@@ -182,6 +182,130 @@ class CursorAndKeyHandler:
       self.parent.animations.fade_in()
     else:
       self.hover_timer.start(100)
+
+
+class ShortcutHandler:
+  def __init__(self, parent):
+    self.parent = parent
+    self.card = self.parent.card
+    self.sp = self.card.get_sp()
+    self.closing_timer = set_timer(self.exit_app)
+
+  def toggle_card_visibility(self):
+    if self.card.is_snoozing: return
+
+    if not self.card.showing_card:
+      self.card.animations.show_card()
+    elif not self.card.is_faded_out and self.card.showing_card:
+      self.card.cursor_handler.on_enter_or_click()
+    elif self.card.is_faded_out:
+      self.card.cursor_handler.on_leave(True)
+
+  def toggle_theme(self):
+    if self.card.is_snoozing: return
+
+    index = THEME_NAMES.index(self.card.theme_name)
+    for name in THEME_NAMES:
+      if name != THEME_NAMES[index]: continue
+
+      next_theme_name = THEME_NAMES[(index + 1) % len(THEME_NAMES)]
+      print(f"Set theme to: {next_theme_name}")
+      self.card.theme_name = next_theme_name
+      return
+
+    print(f"Set theme to: {THEME_NAMES[0]}")
+    self.card.theme_name = THEME_NAMES[0]
+
+  def toggle_playback(self):
+    if self.card.is_snoozing: return
+
+    current_playback = get_current_playback(self.sp)
+    if current_playback and current_playback['is_playing']:
+      self.sp.pause_playback()
+    elif current_playback and not current_playback['is_playing']:
+      self.sp.start_playback()
+
+  def next_track(self):
+    if self.card.is_snoozing: return
+    self.sp.next_track()
+
+  def previous_track(self):
+    if self.card.is_snoozing: return
+    self.sp.previous_track()
+
+  def toggle_shuffle(self):
+    if self.card.is_snoozing: return
+
+    current_playback = get_current_playback(self.sp)
+    if current_playback['shuffle_state']:
+      print("shuffle turned off")
+      self.sp.shuffle(False)
+    else:
+      print("shuffle turned on")
+      self.sp.shuffle(True)
+
+  def toggle_repeat(self):
+    if self.card.is_snoozing: return
+
+    REPEAT_MODES = ['off', 'context', 'track']
+    current_playback = get_current_playback(self.sp)
+
+    index = REPEAT_MODES.index(current_playback['repeat_state'])
+    for mode in REPEAT_MODES:
+      if mode != REPEAT_MODES[index]: continue
+
+      next_mode = REPEAT_MODES[(index + 1) % len(REPEAT_MODES)]
+      print(f"Set repeat mode to: {next_mode}")
+      self.sp.repeat(next_mode)
+      return
+
+    print(f"Set repeat mode to: {REPEAT_MODES[0]}")
+    self.sp.repeat(REPEAT_MODES[0])
+
+  def volume_up(self):
+    if self.card.is_snoozing: return
+
+    current_playback = get_current_playback(self.sp)
+    current_volume = current_playback['device']['volume_percent']
+    if current_volume == 100:
+      print("Volume is already at 100%")
+      return
+
+    print(f"Set volume to: {min(100, current_volume + 10)}%")
+    new_volume = min(100, current_volume + 10)
+    self.sp.volume(new_volume)
+
+  def volume_down(self):
+    if self.card.is_snoozing: return
+
+    current_playback = get_current_playback(self.sp)
+    current_volume = current_playback['device']['volume_percent']
+    if current_volume == 0:
+      print("Volume is already at 0%")
+      return
+
+    print(f"Set volume to: {max(0, current_volume - 10)}%")
+    new_volume = max(0, current_volume - 10)
+    self.sp.volume(new_volume)
+
+  def toggle_snooze(self):
+    if self.card.is_snoozing:
+      print("Awake...")
+      self.card.is_snoozing = False
+      self.card.updater.update_card()
+    else:
+      print("Snoozing...")
+      if self.card.showing_card: self.card.animations.fade_out()
+      self.card.is_snoozing = True
+
+  def exit_app(self):
+    print("Exiting...")
+    if self.card.showing_card:
+      self.card.animations.fade_out()
+      QTimer.singleShot(500, lambda: QtWidgets.QApplication.quit())
+      return
+
+    QtWidgets.QApplication.quit()
 
 
 class ScreenHandler:
