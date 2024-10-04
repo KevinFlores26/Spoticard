@@ -8,8 +8,8 @@
   "next_shortcut": "ctrl+alt+5",
   "shuffle_shortcut": "ctrl+alt+6",
   "repeat_shortcut": "ctrl+alt+7",
-  "volume_up_shortcut": "ctrl+alt+up",
-  "volume_down_shortcut": "ctrl+alt+down",
+  "volume_up_shortcut": "ctrl+alt+=",
+  "volume_down_shortcut": "ctrl+alt+-",
   "snooze_shortcut": "ctrl+alt+9",
   "exit_shortcut": "ctrl+alt+0",
 
