@@ -73,8 +73,9 @@ class MusicCardWindow(QtWidgets.QMainWindow):
 
 
 class MusicCard(QtWidgets.QFrame):
-  def __init__(self, parent):
-    super().__init__(parent)
+  def __init__(self, window):
+    super().__init__(window)
+    self.sp = sp
     self.theme_name = get_pr("theme")
     self.current_theme = theme
     self.showing_card = False
@@ -147,10 +148,6 @@ class MusicCard(QtWidgets.QFrame):
 
     # Init
     self.updater.update_card()
-
-  @staticmethod
-  def get_sp():
-    return sp
 
   # Card events
   def enterEvent(self, event):

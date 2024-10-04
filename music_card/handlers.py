@@ -14,9 +14,10 @@ get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
 class UpdateHandler:
-  def __init__(self, parent):
-    self.parent = parent
-    self.sp = parent.get_sp()
+  def __init__(self, card):
+    self.card = card
+    self.animations = self.card.animations
+    self.sp = self.card.sp
 
     self.previous_track_id = None
     self.previous_is_playing = None
@@ -26,16 +27,16 @@ class UpdateHandler:
   # Main logic to show the card
   def update_card(self):
     if self.update_timer.isActive(): self.update_timer.stop()
-    if self.parent.showing_card or self.parent.is_snoozing: return
+    if self.card.showing_card or self.card.is_snoozing: return
 
-    theme = get_current_theme(def_prefs, user_prefs, themes, self.parent.theme_name)
+    theme = get_current_theme(def_prefs, user_prefs, themes, self.card.theme_name)
     current_playback = get_current_playback(self.sp)
 
     # Set theme if it was changed and show the card
-    if self.parent.current_theme.get("THEME_NAME") != theme.get("THEME_NAME"):
-      card_labels = [self.parent.title_label, self.parent.artist_label]
-      set_theme(self.parent, card_labels, theme)
-      self.parent.current_theme = theme
+    if self.card.current_theme.get("THEME_NAME") != theme.get("THEME_NAME"):
+      card_labels = [self.card.title_label, self.card.artist_label]
+      set_theme(self.card, card_labels, theme)
+      self.card.current_theme = theme
 
       current_track = current_playback["item"]
       self.update_card_properties(current_track)
@@ -102,75 +103,76 @@ class UpdateHandler:
       pixmap = convert_img_to_pixmap(get_pr("image_size"), img_url, True, get_pr("image_radius"))
 
       if not get_pr("only_custom_color"):
-        image_color = get_image_color(img_url, self.parent.current_theme.get("bg_color"), get_pr("dominant_color"))
+        image_color = get_image_color(img_url, self.card.current_theme.get("bg_color"), get_pr("dominant_color"))
 
     # Set properties
-    self.parent.title_label.setText(title)
-    self.parent.artist_label.setText(artist)
+    self.card.title_label.setText(title)
+    self.card.artist_label.setText(artist)
     self.set_pixmap(pixmap)
-    self.parent.bar.setStyleSheet(f"background-color: {image_color};")
+    self.card.bar.setStyleSheet(f"background-color: {image_color};")
 
     # Set the card width manually
-    total_width = get_total_width(self.parent.card_layout, get_pr("card_spacing"), get_pr("min_card_width"))
-    self.parent.setFixedWidth(total_width)
+    total_width = get_total_width(self.card.card_layout, get_pr("card_spacing"), get_pr("min_card_width"))
+    self.card.setFixedWidth(total_width)
 
     # Update valid card's coordinates
-    rect = self.parent.geometry()
+    rect = self.card.geometry()
     coords = {
       "upper_left": [get_pr("end_x_pos"), get_pr("end_y_pos")],
       "upper_right": [get_pr("end_x_pos") + rect.width(), get_pr("end_y_pos")],
       "lower_left": [get_pr("end_x_pos"), get_pr("end_y_pos") + rect.height()],
       "lower_right": [get_pr("end_x_pos") + rect.width(), get_pr("end_y_pos") + rect.height()],
     }
-    self.parent.coords = coords
-    self.parent.animations.show_card()
+    self.card.coords = coords
+    self.animations.show_card()
 
   def set_pixmap(self, pixmap):
     if not pixmap:
-      self.parent.img_label.clear()
+      self.card.img_label.clear()
       return
 
     try:
-      self.parent.img_label.setPixmap(pixmap)
+      self.card.img_label.setPixmap(pixmap)
     except Exception as e:
       print(f"Error: Image not found or not supported ({e})")
-      self.parent.img_label.clear()
+      self.card.img_label.clear()
 
   def reset_card_properties(self):
-    if self.parent.opacity_effect.opacity() == 0:
-      self.parent.animations.fade_in()
+    if self.card.opacity_effect.opacity() == 0:
+      self.animations.fade_in()
 
-    self.parent.bar.setStyleSheet(f"background-color: {get_pr('custom_accent')};")
-    self.parent.title_label.setText("")
-    self.parent.artist_label.setText("")
-    self.parent.img_label.clear()
+    self.card.bar.setStyleSheet(f"background-color: {get_pr('custom_accent')};")
+    self.card.title_label.setText("")
+    self.card.artist_label.setText("")
+    self.card.img_label.clear()
 
 
 class CursorAndKeyHandler:
-  def __init__(self, parent):
-    self.parent = parent
-    self.hover_timer = set_timer(self.parent.call_leave_event)
+  def __init__(self, card):
+    self.card = card
+    self.animations = self.card.animations
+    self.hover_timer = set_timer(self.card.call_leave_event)
 
   def on_enter_or_click(self):
-    if self.parent.is_faded_out:
+    if self.card.is_faded_out:
       return
 
-    self.parent.is_faded_out = True
-    self.parent.animations.fade_out()
+    self.card.is_faded_out = True
+    self.animations.fade_out()
 
   def on_leave(self, force_show=False):
-    if not self.parent.is_faded_out:
+    if not self.card.is_faded_out:
       self.hover_timer.stop()
       return
 
     if force_show:
-      self.parent.is_faded_out = False
-      self.parent.animations.fade_in()
+      self.card.is_faded_out = False
+      self.animations.fade_in()
       return
 
     c_pos = QtGui.QCursor.pos()  # cursor position
-    u_left = self.parent.coords["upper_left"]
-    l_right = self.parent.coords["lower_right"]
+    u_left = self.card.coords["upper_left"]
+    l_right = self.card.coords["lower_right"]
 
     # Check if the card left the screen
     if (
@@ -179,17 +181,18 @@ class CursorAndKeyHandler:
       or c_pos.x() > l_right[0]
       or c_pos.y() > l_right[1]
     ):
-      self.parent.is_faded_out = False
-      self.parent.animations.fade_in()
+      self.card.is_faded_out = False
+      self.animations.fade_in()
     else:
       self.hover_timer.start(100)
 
 
 class ShortcutHandler:
-  def __init__(self, parent):
-    self.parent = parent
-    self.card = self.parent.card
-    self.sp = self.card.get_sp()
+  def __init__(self, window):
+    self.window = window
+    self.card = self.window.card
+    self.animations = self.card.animations
+    self.sp = self.card.sp
     self.closing_timer = set_timer(self.exit_app)
 
     self.thread = QtCore.QThread()
@@ -205,12 +208,12 @@ class ShortcutHandler:
       self.card.updater.update_card()
     else:
       print("Snoozing...")
-      if self.card.showing_card: self.card.animations.fade_out()
+      if self.card.showing_card: self.animations.fade_out()
       self.card.is_snoozing = True
 
   def exit_app(self):
     print("Exiting...")
-    if self.card.showing_card: self.card.animations.fade_out()
+    if self.card.showing_card: self.animations.fade_out()
     QTimer.singleShot(500, lambda: QtWidgets.QApplication.quit())
 
   # Visual related shortcuts
@@ -218,7 +221,7 @@ class ShortcutHandler:
     if self.card.is_snoozing: return
 
     if not self.card.showing_card:
-      self.card.animations.show_card()
+      self.animations.show_card()
     elif not self.card.is_faded_out and self.card.showing_card:
       self.card.cursor_handler.on_enter_or_click()
     elif self.card.is_faded_out:
@@ -270,8 +273,8 @@ class ShortcutHandler:
 
 
 class ScreenHandler:
-  def __init__(self, parent, app):
-    self.parent = parent
+  def __init__(self, window, app):
+    self.window = window
     self.screens = app.screens()
 
   def get_screen_geometry(self, screen_index=0):

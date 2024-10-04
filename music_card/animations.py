@@ -10,26 +10,26 @@ get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
 class MusicCardAnimations:
-  def __init__(self, parent):
-    self.parent = parent
-    self.sp = parent.get_sp()
+  def __init__(self, card):
+    self.card = card
+    self.sp = self.card.sp
     self.last_x = get_pr("start_x_pos")
 
     # Set animations properties
-    self.slide_in_animation = self.parent.slide_in_animation
+    self.slide_in_animation = self.card.slide_in_animation
     self.slide_in_animation.setDuration(get_pr("open_animation_dur"))
     self.slide_in_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("open_animation_easing"), QEasingCurve.Linear))
 
-    self.slide_out_animation = self.parent.slide_out_animation
+    self.slide_out_animation = self.card.slide_out_animation
     self.slide_out_animation.setDuration(get_pr("close_animation_dur"))
     self.slide_out_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("close_animation_easing"), QEasingCurve.Linear))
     self.slide_out_animation.finished.connect(self.restart_loop)
 
-    self.fade_out_animation = self.parent.fade_out_animation
+    self.fade_out_animation = self.card.fade_out_animation
     self.fade_out_animation.setDuration(300)
     self.fade_out_animation.setEasingCurve(QEasingCurve.OutCubic)
 
-    self.fade_in_animation = self.parent.fade_in_animation
+    self.fade_in_animation = self.card.fade_in_animation
     self.fade_in_animation.setDuration(300)
     self.fade_in_animation.setEasingCurve(QEasingCurve.InCubic)
 
@@ -38,8 +38,8 @@ class MusicCardAnimations:
     if self.slide_in_animation.state() == QPropertyAnimation.Running:
       self.slide_in_animation.stop()
 
-    self.parent.timeline.start()
-    self.parent.showing_card = True
+    self.card.timeline.start()
+    self.card.showing_card = True
 
     start_pos = QPoint(self.last_x, get_pr("start_y_pos"))
     end_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
@@ -50,13 +50,13 @@ class MusicCardAnimations:
 
   def start_hide_card(self):
     if (
-      self.parent.timeline.state() == QTimeLine.Running
-      and self.parent.timeline.currentFrame() == 100
+      self.card.timeline.state() == QTimeLine.Running
+      and self.card.timeline.currentFrame() == 100
     ):
       self.hide_card()
 
   def hide_card(self):
-    rect = self.parent.geometry()
+    rect = self.card.geometry()
     start_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
     end_pos = QPoint(-rect.width(), get_pr("start_y_pos"))
 
@@ -66,14 +66,14 @@ class MusicCardAnimations:
 
   def restart_loop(self):
     # Reset some properties and restart the loop
-    if self.parent.timeline.state() == QTimeLine.Running: self.parent.timeline.stop()
-    if self.parent.opacity_effect.opacity() == 0: self.fade_in()
+    if self.card.timeline.state() == QTimeLine.Running: self.card.timeline.stop()
+    if self.card.opacity_effect.opacity() == 0: self.fade_in()
 
-    rect = self.parent.geometry()
+    rect = self.card.geometry()
     self.last_x = rect.x()
 
-    self.parent.showing_card = False
-    self.parent.updater.update_timer.start(1000)
+    self.card.showing_card = False
+    self.card.updater.update_timer.start(1000)
 
   # Card hover animations
   def fade_out(self):

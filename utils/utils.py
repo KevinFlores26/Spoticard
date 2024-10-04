@@ -34,12 +34,9 @@ def load_json(file_path):
 
   if os.path.exists(relative_path) and os.path.getsize(relative_path) > 0:
     with open(relative_path, "r") as f:
-      print(f"Loading {relative_path}...")
       data = json.load(f)
-      print(f"Content: {data}\n")
       return data
   else:
-    print(f"File not found or is empty: {relative_path}\n")
     return { }
 
 
