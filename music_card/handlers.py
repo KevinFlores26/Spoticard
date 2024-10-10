@@ -265,11 +265,11 @@ class ShortcutHandler:
 
   def volume_up(self):
     if not self.card.is_snoozing:
-      self.worker.on_volume_up.emit()
+      self.worker.on_volume.emit(True)
 
   def volume_down(self):
     if not self.card.is_snoozing:
-      self.worker.on_volume_down.emit()
+      self.worker.on_volume.emit(False)
 
 
 class ScreenHandler:

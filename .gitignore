@@ -10,5 +10,7 @@ __pycache__/
 .history/
 
 # Other
+start.bat
+resources/img/spotify-icon.ico
 Thumbs.db
 *~

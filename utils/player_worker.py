@@ -1,6 +1,7 @@
 import requests, time
 from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal, QThread
+from PyQt5.QtCore import pyqtSignal
+from utils.utils import debounce
 
 
 class PlayerWorker(QtCore.QObject):
@@ -9,21 +10,20 @@ class PlayerWorker(QtCore.QObject):
   on_previous_track = pyqtSignal()
   on_shuffle = pyqtSignal()
   on_repeat = pyqtSignal()
-  on_volume_up = pyqtSignal()
-  on_volume_down = pyqtSignal()
+  on_volume = pyqtSignal(bool)
 
   def __init__(self, sp=None):
     super().__init__()
     self.sp = sp
-    self.current_volume = None
+    self.volume = 0
+    self.setting_volume = False
 
     self.on_toggle_playback.connect(self.toggle_playback)
     self.on_next_track.connect(self.next_track)
     self.on_previous_track.connect(self.previous_track)
     self.on_shuffle.connect(self.toggle_shuffle)
     self.on_repeat.connect(self.toggle_repeat)
-    self.on_volume_up.connect(self.volume_up)
-    self.on_volume_down.connect(self.volume_down)
+    self.on_volume.connect(self.change_volume)
 
   @QtCore.pyqtSlot()
   def get_current_playback(self, retries=3, delay=5):
@@ -84,26 +84,36 @@ class PlayerWorker(QtCore.QObject):
     self.sp.repeat(REPEAT_MODES[0])
     print(f"Set repeat mode to: {REPEAT_MODES[0]}")
 
-  @QtCore.pyqtSlot()
-  def volume_up(self):
+  @debounce(1000)
+  def set_volume(self):
+    self.sp.volume(self.volume)
+    print(f"Volume set to: {self.volume}%")
+
+    self.volume = 0
+    self.setting_volume = False
+
+  @QtCore.pyqtSlot(bool)
+  def change_volume(self, up):
+
     current_playback = self.get_current_playback()
     current_volume = current_playback['device']['volume_percent']
-    if current_volume == 100:
-      print("Volume is already at 100%")
-      return
+    if not self.setting_volume:
+      self.setting_volume = True
+      self.volume = current_volume
 
-    new_volume = min(100, current_volume + 10)
-    self.sp.volume(new_volume)
-    print(f"Set volume to: {new_volume}%")
+    if up:
+      if self.volume == 100:
+        print("Volume is already at 100%")
+        return
 
-  @QtCore.pyqtSlot()
-  def volume_down(self):
-    current_playback = self.get_current_playback()
-    current_volume = current_playback['device']['volume_percent']
-    if current_volume == 0:
-      print("Volume is already at 0%")
-      return
+      self.volume = round(min(100, self.volume + 10), -1)
+      print(self.volume)
+    else:
+      if self.volume == 0:
+        print("Volume is already at 0%")
+        return
 
-    new_volume = max(0, current_volume - 10)
-    self.sp.volume(new_volume)
-    print(f"Set volume to: {new_volume}%")
+      self.volume = round(max(0, self.volume - 10), -1)
+      print(self.volume)
+
+    self.set_volume()

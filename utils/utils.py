@@ -1,4 +1,4 @@
-import os, json, requests, darkdetect, time, re
+import os, json, requests, darkdetect, time, re, threading
 from PIL import Image
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QColor
@@ -46,6 +46,23 @@ def set_timer(callback):
   timer.timeout.connect(callback)
 
   return timer
+
+
+def debounce(wait):
+  # Debounces a function
+  def decorator(fn):
+    def debounced(*args, **kwargs):
+      def call_it():
+        fn(*args, **kwargs)
+
+      if hasattr(debounced, '_timer'):
+        debounced._timer.cancel()
+      debounced._timer = threading.Timer(wait / 1000, call_it)
+      debounced._timer.start()
+
+    return debounced
+
+  return decorator
 
 
 def get_current_theme(def_prefs, user_prefs, themes, theme_name=""):
