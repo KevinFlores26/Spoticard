@@ -4,7 +4,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation, pyqtSignal
 
-from utils.utils import load_json, get_current_theme
+from utils.utils import get_pr, theme
 from music_card.animations import MusicCardAnimations
 from music_card.handlers import UpdateHandler, ScreenHandler, CursorAndKeyHandler, ShortcutHandler
 from config.config import params as p
@@ -18,14 +18,6 @@ sp = spotipy.Spotify(
     scope=p["SCOPE"],
   )
 )
-
-def_prefs = load_json(r"config\preferences_default.json")
-user_prefs = load_json(r"config\preferences_user.json")
-themes = load_json(r"config\themes.json")
-theme = get_current_theme(def_prefs, user_prefs, themes)
-
-# Lambda get preferences (user and default as fallback)
-get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
 class MusicCardWindow(QtWidgets.QMainWindow):

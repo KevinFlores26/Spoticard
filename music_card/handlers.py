@@ -1,16 +1,9 @@
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import QTimer
 
-from utils.utils import load_json, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
+from utils.utils import get_pr, def_prefs, user_prefs, themes, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
 from utils.misc import THEME_NAMES
 from utils.player_worker import PlayerWorker
-
-def_prefs = load_json(r"config\preferences_default.json")
-user_prefs = load_json(r"config\preferences_user.json")
-themes = load_json(r"config\themes.json")
-
-# Lambda get preferences (user and default as fallback)
-get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
 class UpdateHandler:

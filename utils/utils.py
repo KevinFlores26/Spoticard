@@ -105,6 +105,15 @@ def change_stylesheet_property(element, prop, value):
     return current_stylesheet + style
 
 
+def_prefs = load_json(r"config\preferences_default.json")
+user_prefs = load_json(r"config\preferences_user.json")
+themes = load_json(r"config\themes.json")
+theme = get_current_theme(def_prefs, user_prefs, themes)
+
+# Lambda get preferences (user and default as fallback)
+get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
+
+
 # Image functions
 def get_image_color(image_url, card_color, dominant=True):
   # Get current song's image color

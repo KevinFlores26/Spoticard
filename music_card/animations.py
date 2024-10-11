@@ -1,12 +1,6 @@
 from PyQt5.QtCore import QEasingCurve, QPoint, QTimeLine, QPropertyAnimation
-from utils.utils import load_json
+from utils.utils import get_pr
 from utils.misc import EASING_FUNCTIONS
-
-def_prefs = load_json(r"config\preferences_default.json")
-user_prefs = load_json(r"config\preferences_user.json")
-
-# Lambda get preferences (user and default as fallback)
-get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
 
 
 class MusicCardAnimations:
