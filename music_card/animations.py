@@ -29,6 +29,7 @@ class MusicCardAnimations:
 
   # Main card timeline (animations), in order of appearance
   def show_card(self):
+    if get_pr("always_on_screen"): return
     if self.slide_in_animation.state() == QPropertyAnimation.Running:
       self.slide_in_animation.stop()
 
@@ -50,6 +51,8 @@ class MusicCardAnimations:
       self.hide_card()
 
   def hide_card(self):
+    if get_pr("always_on_screen"): return
+
     rect = self.card.geometry()
     start_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
     end_pos = QPoint(-rect.width(), get_pr("start_y_pos"))

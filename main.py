@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation, pyqtSignal
 
 from utils.utils import get_pr, theme
 from music_card.animations import MusicCardAnimations
-from music_card.handlers import UpdateHandler, ScreenHandler, CursorAndKeyHandler, ShortcutHandler
+from music_card.handlers import UpdateHandler, ScreenHandler, CursorHandler, ShortcutHandler
 from config.config import params as p
 from config.config import urls
 
@@ -37,7 +37,10 @@ class MusicCardWindow(QtWidgets.QMainWindow):
 
   def __init__(self, app):
     super().__init__()
-    self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+    if get_pr("only_on_desktop"):
+      self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
+    else:
+      self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
     self.setAttribute(Qt.WA_TranslucentBackground)
 
     self.screen = ScreenHandler(self, app)
@@ -47,7 +50,10 @@ class MusicCardWindow(QtWidgets.QMainWindow):
 
     self.card = MusicCard(self)
     self.card.setParent(self)
-    self.card.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
+    if get_pr("always_on_screen"):
+      self.card.move(abs(get_pr("fixed_x_pos")), abs(get_pr("fixed_y_pos")))
+    else:
+      self.card.move(get_pr("start_x_pos"), get_pr("start_y_pos"))
 
     # Shortcut handlers
     self.shortcut = ShortcutHandler(self)
@@ -70,10 +76,15 @@ class MusicCard(QtWidgets.QFrame):
     self.sp = sp
     self.theme_name = get_pr("theme")
     self.current_theme = theme
+
     self.showing_card = False
+    if get_pr("always_on_screen"): self.showing_card = True
     self.is_faded_out = False
     self.is_snoozing = False
     self.coords = None
+
+    self.is_dragging = False
+    self.drag_start_pos = QtCore.QPoint(abs(get_pr("fixed_x_pos")), abs(get_pr("fixed_y_pos")))
     self.setMouseTracking(True)
 
     # Main layout
@@ -136,7 +147,7 @@ class MusicCard(QtWidgets.QFrame):
 
     # Handlers
     self.updater = UpdateHandler(self)
-    self.cursor_handler = CursorAndKeyHandler(self)
+    self.cursor_handler = CursorHandler(self)
 
     # Init
     self.updater.update_card()
@@ -144,7 +155,7 @@ class MusicCard(QtWidgets.QFrame):
   # Card events
   def enterEvent(self, event):
     if not get_pr("hide_on_click"):
-      self.cursor_handler.on_enter_or_click()
+      self.cursor_handler.on_click()
       super().enterEvent(event)
 
   def leaveEvent(self, event):
@@ -157,8 +168,24 @@ class MusicCard(QtWidgets.QFrame):
     self.leaveEvent(q_event)
 
   def mousePressEvent(self, event):
-    if get_pr("hide_on_click") and not self.is_faded_out:
-      self.cursor_handler.on_enter_or_click()
+    if get_pr("always_on_screen") and get_pr("draggable") and event.button() == Qt.RightButton:
+      self.is_dragging = True
+      self.drag_start_pos = event.globalPos() - self.frameGeometry().topLeft()
+      event.accept()
+
+    if get_pr("hide_on_click") and not self.is_faded_out and event.button() == Qt.LeftButton:
+      self.cursor_handler.on_click()
+
+  def mouseMoveEvent(self, event):
+    if self.is_dragging:
+      new_pos = event.globalPos() - self.drag_start_pos
+      self.move(new_pos)
+      event.accept()
+
+  def mouseReleaseEvent(self, event):
+    if get_pr("always_on_screen") and get_pr("draggable") and event.button() == Qt.RightButton:
+      self.is_dragging = False
+      event.accept()
 
 
 # Run the app

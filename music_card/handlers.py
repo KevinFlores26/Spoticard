@@ -20,7 +20,7 @@ class UpdateHandler:
   # Main logic to show the card
   def update_card(self):
     if self.update_timer.isActive(): self.update_timer.stop()
-    if self.card.showing_card or self.card.is_snoozing: return
+    if (not get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing: return
 
     theme = get_current_theme(def_prefs, user_prefs, themes, self.card.theme_name)
     current_playback = get_current_playback(self.sp)
@@ -140,13 +140,13 @@ class UpdateHandler:
     self.card.img_label.clear()
 
 
-class CursorAndKeyHandler:
+class CursorHandler:
   def __init__(self, card):
     self.card = card
     self.animations = self.card.animations
     self.hover_timer = set_timer(self.card.call_leave_event)
 
-  def on_enter_or_click(self):
+  def on_click(self):
     if self.card.is_faded_out:
       return
 
@@ -197,6 +197,7 @@ class ShortcutHandler:
   def toggle_snooze(self):
     if self.card.is_snoozing:
       print("Awake...")
+      if get_pr("always_on_screen"): self.animations.fade_in()
       self.card.is_snoozing = False
       self.card.updater.update_card()
     else:
@@ -216,7 +217,7 @@ class ShortcutHandler:
     if not self.card.showing_card:
       self.animations.show_card()
     elif not self.card.is_faded_out and self.card.showing_card:
-      self.card.cursor_handler.on_enter_or_click()
+      self.card.cursor_handler.on_click()
     elif self.card.is_faded_out:
       self.card.cursor_handler.on_leave(True)
 

@@ -19,6 +19,11 @@
   "image_order": 1,
   "info_order": 2,
 
+  "always_on_screen": false,
+  "only_on_desktop": false,
+  "draggable": true,
+  "fixed_x_pos": 0,
+  "fixed_y_pos": 30,
   "start_x_pos": -500,
   "start_y_pos": 30,
   "end_x_pos": -50,
