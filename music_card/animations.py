@@ -70,7 +70,7 @@ class MusicCardAnimations:
     self.last_x = rect.x()
 
     self.card.showing_card = False
-    self.card.updater.update_timer.start(1000)
+    self.card.updater.loop_timer.start(1000)
 
   # Card hover animations
   def fade_out(self):

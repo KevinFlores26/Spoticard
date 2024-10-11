@@ -132,7 +132,7 @@ class MusicCard(QtWidgets.QFrame):
     self.slide_out_animation = QPropertyAnimation(self, b"pos")
 
     self.opacity_effect = QGraphicsOpacityEffect(self)
-    self.opacity_effect.setOpacity(1.0)
+    self.opacity_effect.setOpacity(0)
     self.setGraphicsEffect(self.opacity_effect)
     self.setAutoFillBackground(True)
 
@@ -150,7 +150,7 @@ class MusicCard(QtWidgets.QFrame):
     self.cursor_handler = CursorHandler(self)
 
     # Init
-    self.updater.update_card()
+    self.updater.start_loop()
 
   # Card events
   def enterEvent(self, event):

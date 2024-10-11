@@ -1,7 +1,23 @@
-import requests, time
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
-from utils.utils import debounce
+from utils.utils import debounce, get_current_playback
+
+
+class FetchWorker(QtCore.QObject):
+  fetching = pyqtSignal()
+  finished = pyqtSignal(object)
+
+  def __init__(self, sp, updater):
+    super().__init__()
+    self.sp = sp
+    self.updater = updater
+    self.fetching.connect(self.fetch)
+
+  @QtCore.pyqtSlot()
+  def fetch(self):
+    print("Fetching...")
+    current_playback = get_current_playback(self.sp)
+    self.finished.emit(current_playback)
 
 
 class PlayerWorker(QtCore.QObject):
@@ -26,24 +42,8 @@ class PlayerWorker(QtCore.QObject):
     self.on_volume.connect(self.change_volume)
 
   @QtCore.pyqtSlot()
-  def get_current_playback(self, retries=3, delay=5):
-    # Gets the current playback information and retry if it fails
-    for attempt in range(retries):
-      try:
-        current_playback = self.sp.current_playback()
-        return current_playback
-      except requests.exceptions.ReadTimeout:
-        print(f"ReadTimeout error. Retry {attempt + 1} of {retries} in {delay} seconds...")
-        time.sleep(delay)
-      except requests.exceptions.RequestException as e:
-        print(f"Other request error: {e}")
-        return None
-
-    return None
-
-  @QtCore.pyqtSlot()
   def toggle_playback(self):
-    current_playback = self.get_current_playback()
+    current_playback = get_current_playback(self.sp)
     if current_playback and current_playback['is_playing']:
       self.sp.pause_playback()
     elif current_playback and not current_playback['is_playing']:
@@ -59,7 +59,7 @@ class PlayerWorker(QtCore.QObject):
 
   @QtCore.pyqtSlot()
   def toggle_shuffle(self):
-    current_playback = self.get_current_playback()
+    current_playback = get_current_playback(self.sp)
     if current_playback['shuffle_state'] is True:
       self.sp.shuffle(False)
       print("shuffle turned off")
@@ -70,7 +70,7 @@ class PlayerWorker(QtCore.QObject):
   @QtCore.pyqtSlot()
   def toggle_repeat(self):
     REPEAT_MODES = ['off', 'context', 'track']
-    current_playback = self.get_current_playback()
+    current_playback = get_current_playback(self.sp)
 
     index = REPEAT_MODES.index(current_playback['repeat_state'])
     for mode in REPEAT_MODES:
@@ -95,7 +95,7 @@ class PlayerWorker(QtCore.QObject):
   @QtCore.pyqtSlot(bool)
   def change_volume(self, up):
 
-    current_playback = self.get_current_playback()
+    current_playback = get_current_playback(self.sp)
     current_volume = current_playback['device']['volume_percent']
     if not self.setting_volume:
       self.setting_volume = True

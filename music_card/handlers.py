@@ -1,9 +1,9 @@
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import QTimer
 
-from utils.utils import get_pr, def_prefs, user_prefs, themes, get_image_color, get_current_playback, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
+from utils.utils import get_pr, def_prefs, user_prefs, themes, get_image_color, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
 from utils.misc import THEME_NAMES
-from utils.player_worker import PlayerWorker
+from utils.playback_worker import PlayerWorker, FetchWorker
 
 
 class UpdateHandler:
@@ -15,15 +15,25 @@ class UpdateHandler:
     self.previous_track_id = None
     self.previous_is_playing = None
     self.alert_card_shown = False
-    self.update_timer = set_timer(self.update_card)
+    self.loop_timer = set_timer(self.start_loop)
+
+    self.worker = FetchWorker(self.sp, self)
+    self.thread = QtCore.QThread()
+    self.worker.moveToThread(self.thread)
+    self.worker.finished.connect(self.update_card)
+    self.thread.start()
 
   # Main logic to show the card
-  def update_card(self):
-    if self.update_timer.isActive(): self.update_timer.stop()
-    if (not get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing: return
+  def start_loop(self):
+    if self.loop_timer.isActive(): self.loop_timer.stop()
+    # Not update the card when it is snoozing or when it is on the screen (excluding when always_on_screen is on)
+    if (not get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing:
+      return
 
+    self.worker.fetching.emit()
+
+  def update_card(self, current_playback):
     theme = get_current_theme(def_prefs, user_prefs, themes, self.card.theme_name)
-    current_playback = get_current_playback(self.sp)
 
     # Set theme if it was changed and show the card
     if self.card.current_theme.get("THEME_NAME") != theme.get("THEME_NAME"):
@@ -75,7 +85,7 @@ class UpdateHandler:
       self.previous_track_id = current_track_id
       self.previous_is_playing = is_playing
 
-    self.update_timer.start(1000)
+    self.loop_timer.start(1000)
 
   def update_card_properties(
     self,
@@ -197,9 +207,9 @@ class ShortcutHandler:
   def toggle_snooze(self):
     if self.card.is_snoozing:
       print("Awake...")
-      if get_pr("always_on_screen"): self.animations.fade_in()
+      if self.card.showing_card: self.animations.fade_in()
       self.card.is_snoozing = False
-      self.card.updater.update_card()
+      self.card.updater.start_loop()
     else:
       print("Snoozing...")
       if self.card.showing_card: self.animations.fade_out()
