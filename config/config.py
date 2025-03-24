@@ -1,5 +1,7 @@
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 from urllib.parse import urlencode
-from utils.utils import load_json
+from utils.functions import load_json
 
 # You can delete or comment this line, or create a client.json in config dir, then add your spotify client data there
 client_data = load_json(r"config\client.json")
@@ -18,3 +20,12 @@ urls = {
   "AUTH_URL": f"https://accounts.spotify.com/authorize?{urlencode({ 'client_id': params['CLIENT_ID'], 'response_type': 'code', 'redirect_uri': 'http://localhost:8888/callback', 'scope': params['SCOPE'] })}",
   "TOKEN_URL": "https://accounts.spotify.com/api/token",
 }
+
+sp = spotipy.Spotify(
+  auth_manager=SpotifyOAuth(
+    client_id=params["CLIENT_ID"],
+    client_secret=params["CLIENT_SECRET"],
+    redirect_uri=urls["REDIRECT_URI"],
+    scope=params["SCOPE"],
+  )
+)

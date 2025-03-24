@@ -1,9 +1,8 @@
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import QTimer
-
-from utils.utils import get_pr, def_prefs, user_prefs, themes, get_image_color, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme
-from utils.misc import THEME_NAMES
-from utils.playback_worker import PlayerWorker, FetchWorker
+from utils.functions import get_pr, def_prefs, user_prefs, themes, get_image_color, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme, set_pixmap
+from utils.helpers import THEME_NAMES
+from workers.playback_worker import PlayerWorker, FetchWorker
 
 
 class UpdateHandler:
@@ -23,9 +22,11 @@ class UpdateHandler:
     self.worker.finished.connect(self.update_card)
     self.thread.start()
 
-  # Main logic to show the card
+  # The loop: start_loop -> FetchWorker -> update_card -> start again
   def start_loop(self):
-    if self.loop_timer.isActive(): self.loop_timer.stop()
+    if self.loop_timer.isActive():
+      self.loop_timer.stop()
+
     # Not update the card when it is snoozing or when it is on the screen (excluding when always_on_screen is on)
     if (not get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing:
       return
@@ -85,8 +86,9 @@ class UpdateHandler:
       self.previous_track_id = current_track_id
       self.previous_is_playing = is_playing
 
-    self.loop_timer.start(1000)
+    self.loop_timer.start(1000)  # Loop starts again
 
+  # Helpers
   def update_card_properties(
     self,
     current_track,
@@ -111,7 +113,7 @@ class UpdateHandler:
     # Set properties
     self.card.title_label.setText(title)
     self.card.artist_label.setText(artist)
-    self.set_pixmap(pixmap)
+    set_pixmap(self.card, pixmap)
     self.card.bar.setStyleSheet(f"background-color: {image_color};")
 
     # Set the card width manually
@@ -128,17 +130,6 @@ class UpdateHandler:
     }
     self.card.coords = coords
     self.animations.show_card()
-
-  def set_pixmap(self, pixmap):
-    if not pixmap:
-      self.card.img_label.clear()
-      return
-
-    try:
-      self.card.img_label.setPixmap(pixmap)
-    except Exception as e:
-      print(f"Error: Image not found or not supported ({e})")
-      self.card.img_label.clear()
 
   def reset_card_properties(self):
     if self.card.opacity_effect.opacity() == 0:

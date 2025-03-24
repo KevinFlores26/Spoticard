@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QColor
 from io import BytesIO
 from colorthief import ColorThief
-from utils.misc import hex_to_rgb, color_distance, get_relative_path, apply_rounded_corners
+from utils.helpers import hex_to_rgb, color_distance, get_relative_path, apply_rounded_corners
 
 
 # Core functions
@@ -167,6 +167,18 @@ def convert_img_to_pixmap(img_size, img_url, is_remote=True, radius=5):
   except Exception as e:
     print(f"Error converting image: {e}")
     return None
+
+
+def set_pixmap(container, pixmap):
+  if not pixmap:
+    container.img_label.clear()
+    return
+
+  try:
+    container.img_label.setPixmap(pixmap)
+  except Exception as e:
+    print(f"Error: Image not found or not supported ({e})")
+    container.img_label.clear()
 
 
 # Layout functions

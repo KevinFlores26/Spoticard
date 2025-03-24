@@ -1,7 +1,6 @@
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
-from utils.utils import debounce, get_current_playback
-
+from utils.functions import debounce, get_current_playback
 
 class FetchWorker(QtCore.QObject):
   fetching = pyqtSignal()

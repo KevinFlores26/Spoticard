@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QEasingCurve, QPoint, QTimeLine, QPropertyAnimation
-from utils.utils import get_pr
-from utils.misc import EASING_FUNCTIONS
+from utils.functions import get_pr
+from utils.helpers import EASING_FUNCTIONS
 
 
 class MusicCardAnimations:
