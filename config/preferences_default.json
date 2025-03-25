@@ -1,4 +1,7 @@
 {
+  "player": "foobar2000",
+  "now_playing_txt_path": "foobar2000-v2\\nowplaying.txt",
+
   "hide_on_click": true,
   "shortcuts": true,
   "visibility_shortcut": "ctrl+alt+1",

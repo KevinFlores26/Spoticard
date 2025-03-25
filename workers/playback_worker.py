@@ -1,22 +1,78 @@
+import os
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
+from mutagen.mp3 import MP3
+from mutagen.flac import FLAC
+from mutagen.mp4 import MP4
+from mutagen.id3 import ID3, APIC
 from utils.functions import debounce, get_current_playback
+from config.config import NOWPLAYING_TXT_PATH
 
-class FetchWorker(QtCore.QObject):
-  fetching = pyqtSignal()
-  finished = pyqtSignal(object)
 
-  def __init__(self, sp, updater):
+class MetadataWorker(QtCore.QObject):
+  fetching: QtCore.pyqtSignal = pyqtSignal(str)
+  finished: QtCore.pyqtSignal = pyqtSignal(object)
+
+  def __init__(self, sp=None):
     super().__init__()
-    self.sp = sp
-    self.updater = updater
+    self.sp = sp  # Spotipy instance
     self.fetching.connect(self.fetch)
 
-  @QtCore.pyqtSlot()
-  def fetch(self):
-    print("Fetching...")
-    current_playback = get_current_playback(self.sp)
+  @QtCore.pyqtSlot(str)
+  def fetch(self, player):
+    print(f"Fetching metadata from {player}...")
+
+    if player == "spotify":
+      current_playback = get_current_playback(self.sp)
+    elif player == "foobar2000":
+      current_playback = self.get_now_playing_from_txt()
+    else:
+      current_playback = None
+
     self.finished.emit(current_playback)
+
+  def get_now_playing_from_txt(self):
+    if not os.path.exists(NOWPLAYING_TXT_PATH):
+      return None
+
+    with open(NOWPLAYING_TXT_PATH, "r", encoding="utf-8") as file:
+      lines = file.read().strip().split("\\n")
+
+    if len(lines) != 4:
+      return None  # Invalid data
+
+    img = self.extract_embedded_art(lines[2])
+    return {
+      "title": lines[0],
+      "artist": lines[1],
+      "filepath": lines[2],
+      "is_playing": True if lines[3] != '1' else False,
+      "img_bytes": img
+    }
+
+  @staticmethod
+  def extract_embedded_art(filepath):
+    audio = None
+    art = None
+
+    if filepath.endswith(".mp3"):
+      audio = MP3(filepath, ID3=ID3)
+      for tag in audio.tags.values():
+        if isinstance(tag, APIC):
+          art = tag.data
+          break
+
+    elif filepath.endswith(".flac"):
+      audio = FLAC(filepath)
+      if audio.pictures:
+        art = audio.pictures[0].data
+
+    elif filepath.endswith(".m4a") or filepath.endswith(".mp4"):
+      audio = MP4(filepath)
+      if "covr" in audio.tags:
+        art = audio.tags["covr"][0]
+
+    return art
 
 
 class PlayerWorker(QtCore.QObject):

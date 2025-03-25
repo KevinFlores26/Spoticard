@@ -1,8 +1,8 @@
-from config.config import sp
+from config.config import SP, THEME
 from PyQt5.QtWidgets import QGraphicsOpacityEffect
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import Qt, QTimeLine, QPropertyAnimation, pyqtSignal
-from utils.functions import get_pr, theme, set_timer
+from utils.functions import get_pr, set_timer
 from ui.music_card.animations import MusicCardAnimations
 from ui.music_card.handlers import UpdateHandler, ScreenHandler, CursorHandler, ShortcutHandler
 
@@ -59,9 +59,9 @@ class MusicCardWindow(QtWidgets.QMainWindow):
 class MusicCard(QtWidgets.QFrame):
   def __init__(self, window):
     super().__init__(window)
-    self.sp = sp
+    self.sp = SP
     self.theme_name = get_pr("theme")
-    self.current_theme = theme
+    self.current_theme = THEME
     self.tooltip_timer = set_timer(self.show_tooltip)
 
     self.showing_card = False
@@ -77,7 +77,7 @@ class MusicCard(QtWidgets.QFrame):
     self.setMouseTracking(True)
 
     # Main layout
-    self.setStyleSheet(f"background-color: {theme.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;")
+    self.setStyleSheet(f"background-color: {THEME.get('bg_color', '#202020')}; border-radius: {get_pr('card_radius')}px;")
     self.setFixedSize(get_pr("min_card_width"), get_pr("min_card_height"))
 
     self.card_layout = QtWidgets.QHBoxLayout(self)
@@ -112,7 +112,7 @@ class MusicCard(QtWidgets.QFrame):
     self.info_layout = QtWidgets.QVBoxLayout()
     self.info_layout.setAlignment(Qt.AlignVCenter)
 
-    label_style = (lambda label: f"color: {theme.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')};")
+    label_style = (lambda label: f"color: {THEME.get(f'{label}_font_color')}; font-size: {get_pr(f'{label}_font_size')}px; font-family: {get_pr(f'{label}_font')};")
     self.title_label = QtWidgets.QLabel("", self)
     self.title_label.setStyleSheet(label_style("title"))
     self.artist_label = QtWidgets.QLabel("", self)

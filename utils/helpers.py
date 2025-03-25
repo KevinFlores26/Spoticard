@@ -1,3 +1,4 @@
+import json
 import math
 import os
 from PyQt5 import QtCore, QtGui
@@ -39,6 +40,17 @@ EASING_FUNCTIONS = {
 }
 
 # Auxiliary functions
+def load_json(file_path):
+  # Loads a JSON file and returns its key: value as a dictionary
+  relative_path = get_relative_path(file_path)
+
+  if os.path.exists(relative_path) and os.path.getsize(relative_path) > 0:
+    with open(relative_path, "r") as f:
+      data = json.load(f)
+      return data
+  else:
+    return { }
+
 def get_relative_path(file_path):
   # Get the path to the file relative to the project root
   project_root = os.path.dirname(os.path.dirname(__file__))

@@ -2,11 +2,10 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs
 from spotipy.oauth2 import SpotifyOAuth
+from config.config import PARAMS as p
+from config.config import URLS
 
-from config.config import params as p
-from config.config import urls
-
-webbrowser.open(urls["AUTH_URL"])
+webbrowser.open(URLS["AUTH_URL"])
 class RequestHandler(BaseHTTPRequestHandler):
   def do_GET(self):
     query_components = parse_qs(self.path.split("?", 1)[-1])
@@ -23,7 +22,7 @@ class RequestHandler(BaseHTTPRequestHandler):
       sp_oauth = SpotifyOAuth(
         client_id=p["CLIENT_ID"],
         client_secret=p["CLIENT_SECRET"],
-        redirect_uri=urls["REDIRECT_URI"],
+        redirect_uri=URLS["REDIRECT_URI"],
       )
       token_info = sp_oauth.get_access_token(auth_code)
       print("Access Token: ", token_info["access_token"])

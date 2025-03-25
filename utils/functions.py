@@ -1,9 +1,9 @@
-import os, json, requests, darkdetect, time, re, threading
+import requests, time, re, threading
 from PIL import Image
 from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtGui import QColor
 from io import BytesIO
 from colorthief import ColorThief
+from config.config import DEF_PREFS, USER_PREFS
 from utils.helpers import hex_to_rgb, color_distance, get_relative_path, apply_rounded_corners
 
 
@@ -28,18 +28,6 @@ def get_current_playback(sp, retries=3, delay=5):
 
 
 # General functions
-def load_json(file_path):
-  # Loads a JSON file and returns its key: value as a dictionary
-  relative_path = get_relative_path(file_path)
-
-  if os.path.exists(relative_path) and os.path.getsize(relative_path) > 0:
-    with open(relative_path, "r") as f:
-      data = json.load(f)
-      return data
-  else:
-    return { }
-
-
 def set_timer(callback):
   # Sets a timer and return it
   timer = QtCore.QTimer()
@@ -65,23 +53,6 @@ def debounce(wait):
   return decorator
 
 
-def get_current_theme(def_prefs, user_prefs, themes, theme_name=""):
-  # Returns the theme selected by the user
-  theme = theme_name
-  if theme_name == "":
-    theme = user_prefs.get("theme", def_prefs.get("theme"))
-
-  if theme == "user": return themes.get("user")
-  if theme == "dark": return themes.get("dark")
-  if theme == "light": return themes.get("light")
-
-  # Adaptive theme as fallback
-  if darkdetect.isDark():
-    return themes.get("dark")
-  else:
-    return themes.get("light")
-
-
 def set_theme(card, card_labels, theme):
   # Sets the theme of the card
   card_style = change_stylesheet_property(card, "background-color", theme.get("bg_color"))
@@ -104,21 +75,32 @@ def change_stylesheet_property(element, prop, value):
   else:
     return current_stylesheet + style
 
-
-def_prefs = load_json(r"config\preferences_default.json")
-user_prefs = load_json(r"config\preferences_user.json")
-themes = load_json(r"config\themes.json")
-theme = get_current_theme(def_prefs, user_prefs, themes)
-
 # Lambda get preferences (user and default as fallback)
-get_pr = lambda key: user_prefs.get(key, def_prefs.get(key))
+get_pr = lambda key: USER_PREFS.get(key, DEF_PREFS.get(key))
 
 
 # Image functions
-def get_image_color(image_url, card_color, dominant=True):
+def get_image_color(img_src, card_color, dominant=True, is_remote=True):
   # Get current song's image color
-  response = requests.get(image_url)
-  img_data = BytesIO(response.content)
+  img_data = None
+
+  if isinstance(img_src, str):
+    if is_remote and img_src.startswith("http"):
+      response = requests.get(img_src)
+      if response.status_code != 200:
+        return None
+
+      img_data = BytesIO(response.content)
+
+    else:
+      img_data = get_relative_path(img_src)
+
+  elif isinstance(img_src, bytes):
+    img_data = BytesIO(img_src)
+
+  else:
+    return None
+
   color_thief = ColorThief(img_data)
 
   palette = color_thief.get_palette(color_count=3, quality=1)
@@ -133,24 +115,32 @@ def get_image_color(image_url, card_color, dominant=True):
       if color_distance(color, rgb_card_color) > 50:
         accent_color = color
         break
-    return "#%02x%02x%02x" % accent_color
-
-  if dominant and len(palette) >= 1:
-    return "#%02x%02x%02x" % dominant_color
+    return "#%02x%02x%02x" % (accent_color[0], accent_color[1], accent_color[2])
 
   # If there isn't more than 1 color, it'll use dominant color instead
   return "#%02x%02x%02x" % dominant_color
 
 
-def convert_img_to_pixmap(img_size, img_url, is_remote=True, radius=5):
+def convert_img_to_pixmap(img_size, img_src, is_remote=True, radius=5):
   try:
-    if is_remote:
-      response = requests.get(img_url)
-      img_data = response.content
-      img = Image.open(BytesIO(img_data))
+    if isinstance(img_src, str):
+      if is_remote and img_src.startswith("http"):
+        response = requests.get(img_src)
+        if response.status_code != 200:
+          return None
+
+        img_data = response.content
+        img = Image.open(BytesIO(img_data))
+
+      else:
+        img_path = get_relative_path(img_src)
+        img = Image.open(img_path)
+
+    elif isinstance(img_src, bytes):
+      img = Image.open(BytesIO(img_src))
+
     else:
-      img_path = get_relative_path(img_url)
-      img = Image.open(img_path)
+      return None
 
     img = img.resize((img_size, img_size), Image.Resampling.LANCZOS)
     img = img.convert("RGBA")
@@ -182,6 +172,45 @@ def set_pixmap(container, pixmap):
 
 
 # Layout functions
+def assign_metadata(current_track, player):
+  metadata = {
+    "title": None,
+    "artist": None,
+    "album": None,
+    "img_url": None,
+    "img_bytes": None,  # image embedded from the track instead of a URL
+    "filepath": None,
+    "is_playing": None
+  }
+
+  if not current_track:
+    return { }
+
+  if player == "spotify":
+    if current_track.get("currently_playing_type") == "ad":
+      return { "case": "ad" }
+    elif current_track.get("item") is None:
+      return { "case": "no_track_info" }
+
+    metadata["is_playing"] = current_track["is_playing"]
+    current_track = current_track["item"]
+
+    metadata["title"] = current_track["name"]
+    metadata["artist"] = current_track["artists"][0]["name"]
+    metadata["album"] = current_track["album"]["name"]
+    metadata["img_url"] = current_track["album"]["images"][0]["url"]
+  elif player == "foobar2000":
+    metadata["title"] = current_track.get("title")
+    metadata["artist"] = current_track.get("artist")
+    metadata["album"] = current_track.get("album")
+    metadata["img_url"] = current_track.get("img_url")
+    metadata["img_bytes"] = current_track.get("img_bytes")
+    metadata["filepath"] = current_track.get("filepath")
+    metadata["is_playing"] = current_track.get("is_playing")
+
+  return metadata
+
+
 def get_total_width(layout, spacing=10, min_width=0):
   # Get the total width of the whole layout
   total_width = 0

@@ -1,5 +1,5 @@
 import keyboard
-from config.config import params as p
+from config.config import PARAMS as p
 from PyQt5 import QtWidgets
 from utils.functions import get_pr
 from ui.music_card.music_card_main import MusicCardWindow

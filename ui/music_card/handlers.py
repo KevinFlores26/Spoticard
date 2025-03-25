@@ -1,9 +1,11 @@
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import QTimer
-from utils.functions import get_pr, def_prefs, user_prefs, themes, get_image_color, get_total_width, convert_img_to_pixmap, set_timer, get_current_theme, set_theme, set_pixmap
+from utils.functions import get_pr, get_image_color, get_total_width, convert_img_to_pixmap, set_timer, set_theme, set_pixmap, assign_metadata
+from config.config import DEF_PREFS, USER_PREFS, THEMES, get_current_theme
 from utils.helpers import THEME_NAMES
-from workers.playback_worker import PlayerWorker, FetchWorker
+from workers.playback_worker import PlayerWorker, MetadataWorker
 
+PLAYER = get_pr("player")
 
 class UpdateHandler:
   def __init__(self, card):
@@ -11,12 +13,17 @@ class UpdateHandler:
     self.animations = self.card.animations
     self.sp = self.card.sp
 
+    self.current_track = None
+    self.current_track_id = None
+    self.is_playing = None
     self.previous_track_id = None
     self.previous_is_playing = None
+
     self.alert_card_shown = False
     self.loop_timer = set_timer(self.start_loop)
 
-    self.worker = FetchWorker(self.sp, self)
+    self.worker = MetadataWorker(self.sp)
+
     self.thread = QtCore.QThread()
     self.worker.moveToThread(self.thread)
     self.worker.finished.connect(self.update_card)
@@ -31,62 +38,74 @@ class UpdateHandler:
     if (not get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing:
       return
 
-    self.worker.fetching.emit()
+    self.worker.fetching.emit(PLAYER)
 
   def update_card(self, current_playback):
-    theme = get_current_theme(def_prefs, user_prefs, themes, self.card.theme_name)
+    current_playback = assign_metadata(current_playback, PLAYER)
+    theme = get_current_theme(DEF_PREFS, USER_PREFS, THEMES, self.card.theme_name)
 
     # Set theme if it was changed and show the card
     if self.card.current_theme.get("THEME_NAME") != theme.get("THEME_NAME"):
-      card_labels = [self.card.title_label, self.card.artist_label]
-      set_theme(self.card, card_labels, theme)
-      self.card.current_theme = theme
-
-      current_track = current_playback["item"]
-      self.update_card_properties(current_track)
+      self.show_theme_changed(theme, current_playback)
 
     # Show warning card if Spotify is not connected
-    elif current_playback is None and not self.alert_card_shown:
-      title = "Not playing"
-      artist = "Turn on Spotify or check your internet connection"
-      pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
-
-      # Set properties
-      self.update_card_properties(None, title, artist, pixmap)
-      self.alert_card_shown = True
-      self.previous_track_id = None
+    elif PLAYER == "spotify" and not current_playback and not self.alert_card_shown:
+      self.show_spotify_not_connected()
 
     # Show the card when the current track has not valid information
-    elif current_playback and current_playback["item"] is None and not self.alert_card_shown:
-      pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
-      self.update_card_properties(current_track=None, pixmap=pixmap)
-      self.alert_card_shown = True
-      self.previous_track_id = None
+    elif PLAYER == "spotify" and current_playback and current_playback.get("case") and not self.alert_card_shown:
+      if current_playback.get("case") == "ad":
+        self.show_invalid_song_info("Spotify ad", "Please wait until the ad is over")
+      if current_playback.get("case") == "no_track_info":
+        self.show_invalid_song_info("No Title", "No Artist")
 
     # Show the card with the current track (normal case)
-    elif current_playback and current_playback["item"]:
-      self.alert_card_shown = False
-
-      current_track = current_playback["item"]
-      is_playing = current_playback["is_playing"]
-      current_track_id = current_track["id"]
-
-      # Shows the card if the song changes, or it changes its state (pause to playing)
-      if (
-        current_track_id != self.previous_track_id
-        or self.previous_is_playing == False and is_playing == True
-      ):
-        self.previous_track_id = current_track_id
-        self.previous_is_playing = is_playing
-
-        # Verify if the card is already showing (if so, hide it), then execute update_card_properties
-        self.update_card_properties(current_track)
-
-      # Update the previous state
-      self.previous_track_id = current_track_id
-      self.previous_is_playing = is_playing
+    elif current_playback and len(current_playback) >= 5:  # At least artist, title, album, img reference and is_playing
+      self.show_normal_case(current_playback)
 
     self.loop_timer.start(1000)  # Loop starts again
+
+  # SHOW THE CARD CASES
+  def show_theme_changed(self, theme, current_playback):
+    card_labels = [self.card.title_label, self.card.artist_label]
+    set_theme(self.card, card_labels, theme)
+    self.card.current_theme = theme
+
+    self.update_card_properties(current_playback)
+
+  def show_spotify_not_connected(self):
+    title = "Not playing"
+    artist = "Turn on Spotify or check your internet connection"
+    pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
+
+    # Set properties
+    self.update_card_properties(None, title, artist, pixmap)
+    self.alert_card_shown = True
+    self.previous_track_id = None
+
+  def show_invalid_song_info(self, title, description):
+    pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
+    self.update_card_properties(current_track=None, title=title, artist=description, pixmap=pixmap)
+    self.alert_card_shown = True
+    self.previous_track_id = None
+
+  def show_normal_case(self, current_playback):
+    self.alert_card_shown = False
+    self.current_track = current_playback
+    self.is_playing = current_playback.get("is_playing")
+
+    if PLAYER == "spotify":
+      self.current_track_id = self.current_track.get("id", 1)
+    elif PLAYER == "foobar2000":
+      self.current_track_id = self.current_track.get("filepath")
+
+    # Shows the card if the song changes, or it changes its state (pause to playing)
+    if self.current_track_id != self.previous_track_id or self.previous_is_playing == False and self.is_playing == True:
+      self.update_card_properties(self.current_track)
+
+    # Update the previous state
+    self.previous_track_id = self.current_track_id
+    self.previous_is_playing = self.is_playing
 
   # Helpers
   def update_card_properties(
@@ -100,15 +119,26 @@ class UpdateHandler:
     self.reset_card_properties()
 
     if current_track:
-      title = current_track["name"]
-      artist = current_track["artists"][0]["name"]
+      title = current_track.get("title")
+      artist = current_track.get("artist")
 
       # Get and show the song's image
-      img_url = current_track["album"]["images"][0]["url"]
-      pixmap = convert_img_to_pixmap(get_pr("image_size"), img_url, True, get_pr("image_radius"))
+      img_src = current_track.get("img_url")
+      is_remote = True
 
-      if not get_pr("only_custom_color"):
-        image_color = get_image_color(img_url, self.card.current_theme.get("bg_color"), get_pr("dominant_color"))
+      if not img_src and current_track.get("filepath"):
+        img_src = current_track.get("img_bytes")  # image embedded from the track
+
+      if not img_src:
+        img_src = r"resources\img\warning.png"
+        is_remote = False
+
+      pixmap = convert_img_to_pixmap(get_pr("image_size"), img_src, is_remote, get_pr("image_radius"))
+
+      if not get_pr("only_custom_color") and is_remote == False:
+        image_color = get_image_color(img_src, self.card.current_theme.get("bg_color"), get_pr("dominant_color"), False)
+      else:
+        image_color = get_image_color(img_src, self.card.current_theme.get("bg_color"), get_pr("dominant_color"))
 
     # Set properties
     self.card.title_label.setText(title)
