@@ -3,7 +3,6 @@ from PIL import Image
 from PyQt5 import QtWidgets, QtGui, QtCore
 from io import BytesIO
 from colorthief import ColorThief
-from config.config import DEF_PREFS, USER_PREFS
 from utils.helpers import hex_to_rgb, color_distance, get_relative_path, apply_rounded_corners
 
 
@@ -74,9 +73,6 @@ def change_stylesheet_property(element, prop, value):
     return re.sub(rf'{prop}:.*?;', style, current_stylesheet)
   else:
     return current_stylesheet + style
-
-# Lambda get preferences (user and default as fallback)
-get_pr = lambda key: USER_PREFS.get(key, DEF_PREFS.get(key))
 
 
 # Image functions

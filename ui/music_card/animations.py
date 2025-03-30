@@ -1,22 +1,21 @@
 from PyQt5.QtCore import QEasingCurve, QPoint, QTimeLine, QPropertyAnimation
-from utils.functions import get_pr
+from config.config_main import config
 from utils.helpers import EASING_FUNCTIONS
 
 
 class MusicCardAnimations:
   def __init__(self, card):
     self.card = card
-    self.sp = self.card.sp
-    self.last_x = get_pr("start_x_pos")
+    self.last_x = config.get_pr("start_x_pos")
 
     # Set animations properties
     self.slide_in_animation = self.card.slide_in_animation
-    self.slide_in_animation.setDuration(get_pr("open_animation_dur"))
-    self.slide_in_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("open_animation_easing"), QEasingCurve.Linear))
+    self.slide_in_animation.setDuration(config.get_pr("open_animation_dur"))
+    self.slide_in_animation.setEasingCurve(EASING_FUNCTIONS.get(config.get_pr("open_animation_easing"), QEasingCurve.Linear))
 
     self.slide_out_animation = self.card.slide_out_animation
-    self.slide_out_animation.setDuration(get_pr("close_animation_dur"))
-    self.slide_out_animation.setEasingCurve(EASING_FUNCTIONS.get(get_pr("close_animation_easing"), QEasingCurve.Linear))
+    self.slide_out_animation.setDuration(config.get_pr("close_animation_dur"))
+    self.slide_out_animation.setEasingCurve(EASING_FUNCTIONS.get(config.get_pr("close_animation_easing"), QEasingCurve.Linear))
     self.slide_out_animation.finished.connect(self.restart_loop)
 
     self.fade_out_animation = self.card.fade_out_animation
@@ -29,15 +28,15 @@ class MusicCardAnimations:
 
   # Main card timeline (animations), in order of appearance
   def show_card(self):
-    if get_pr("always_on_screen"): return
+    if config.get_pr("always_on_screen"): return
     if self.slide_in_animation.state() == QPropertyAnimation.Running:
       self.slide_in_animation.stop()
 
     self.card.timeline.start()
     self.card.showing_card = True
 
-    start_pos = QPoint(self.last_x, get_pr("start_y_pos"))
-    end_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
+    start_pos = QPoint(self.last_x, config.get_pr("start_y_pos"))
+    end_pos = QPoint(config.get_pr("end_x_pos"), config.get_pr("end_y_pos"))
 
     self.slide_in_animation.setStartValue(start_pos)
     self.slide_in_animation.setEndValue(end_pos)
@@ -51,11 +50,11 @@ class MusicCardAnimations:
       self.hide_card()
 
   def hide_card(self):
-    if get_pr("always_on_screen"): return
+    if config.get_pr("always_on_screen"): return
 
     rect = self.card.geometry()
-    start_pos = QPoint(get_pr("end_x_pos"), get_pr("end_y_pos"))
-    end_pos = QPoint(-rect.width(), get_pr("start_y_pos"))
+    start_pos = QPoint(config.get_pr("end_x_pos"), config.get_pr("end_y_pos"))
+    end_pos = QPoint(-rect.width(), config.get_pr("start_y_pos"))
 
     self.slide_out_animation.setStartValue(start_pos)
     self.slide_out_animation.setEndValue(end_pos)

@@ -2,7 +2,8 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypedDict
-from utils.functions import get_pr, convert_img_to_pixmap
+from utils.functions import convert_img_to_pixmap
+from config.config_main import config
 
 if TYPE_CHECKING: # Imports only for type annotations purposes (ignored at runtime)
   from PyQt5 import QtGui
@@ -77,7 +78,7 @@ class IMetadataHandler(ABC):
   # Generic "show invalid info"
   def show_invalid_song_info(self, title: str, description: str, img_path: str = '') -> None:
     img_path: str = r"resources\img\warning.png" if img_path == '' else img_path
-    pixmap: QtGui.QPixmap = convert_img_to_pixmap(get_pr("image_size"), img_path, False)
+    pixmap: QtGui.QPixmap = convert_img_to_pixmap(config.get_pr("image_size"), img_path, False)
 
     self.updater.update_card_properties(current_track=None, title=title, artist=description, pixmap=pixmap)
     self.was_alert_card_shown = True

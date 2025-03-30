@@ -6,8 +6,6 @@ from config.base import ConfigRelatedMeta
 
 class SpotifyAuthConfig(metaclass=ConfigRelatedMeta):
   def __init__(self):
-    self.SP: spotipy.Spotify = self.get_spotify_client()
-
     #  You must create a client.json in config dir, then add your spotify client data there
     self.CLIENT_DATA: dict[str, str] = load_json(r"config\client.json")
     self.PARAMS: dict[str, str] = {
@@ -23,6 +21,8 @@ class SpotifyAuthConfig(metaclass=ConfigRelatedMeta):
       "AUTH_URL": f"https://accounts.spotify.com/authorize?{urlencode({ 'client_id': self.PARAMS['CLIENT_ID'], 'response_type': 'code', 'redirect_uri': 'http://localhost:8888/callback', 'scope': self.PARAMS['SCOPE'] })}",
       "TOKEN_URL": "https://accounts.spotify.com/api/token",
     }
+
+    self.SP: spotipy.Spotify = self.get_spotify_client()
 
   def get_spotify_client(self) -> spotipy.Spotify:
     return spotipy.Spotify(

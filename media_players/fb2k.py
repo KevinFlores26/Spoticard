@@ -2,8 +2,7 @@ import os, requests
 from typing import TypedDict, Any, Callable
 from media_players.base import IMetadataWorker, IMetadataHandler, IPlaybackWorker
 from media_players.helpers.image_extractor import extract_embedded_image
-from config.config import NOWPLAYING_TXT_PATH
-from utils.functions import debounce
+from config.config_main import config
 
 
 class MetadataDict(TypedDict):
@@ -17,10 +16,10 @@ class FB2KMetadataWorker(IMetadataWorker):
   def get_metadata(self):
     print(f"Fetching metadata...")
 
-    if not os.path.exists(NOWPLAYING_TXT_PATH) and not NOWPLAYING_TXT_PATH.endswith(".txt"):
+    if not os.path.exists(config.NOWPLAYING_TXT_PATH) and not config.NOWPLAYING_TXT_PATH.endswith(".txt"):
       return { }
 
-    with open(NOWPLAYING_TXT_PATH, "r", encoding="utf-8") as file:
+    with open(config.NOWPLAYING_TXT_PATH, "r", encoding="utf-8") as file:
       lines = file.read().strip().split("\\n")
 
     if len(lines) <= 3:

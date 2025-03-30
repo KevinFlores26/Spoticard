@@ -1,17 +1,16 @@
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import QTimer
-from utils.functions import get_pr, get_image_color, get_total_width, convert_img_to_pixmap, set_timer, set_theme, set_pixmap, assign_metadata
-from config.config import DEF_PREFS, USER_PREFS, THEMES, get_current_theme
+from config.config_main import config
+from utils.functions import get_image_color, get_total_width, convert_img_to_pixmap, set_timer, set_theme, set_pixmap, assign_metadata
 from utils.helpers import THEME_NAMES
 from workers.playback_worker import PlayerWorker, MetadataWorker
 
-PLAYER = get_pr("player")
+PLAYER = config.get_pr("player")
 
 class UpdateHandler:
   def __init__(self, card):
     self.card = card
     self.animations = self.card.animations
-    self.sp = self.card.sp
 
     self.current_track = None
     self.current_track_id = None
@@ -22,7 +21,7 @@ class UpdateHandler:
     self.alert_card_shown = False
     self.loop_timer = set_timer(self.start_loop)
 
-    self.worker = MetadataWorker(self.sp)
+    self.worker = MetadataWorker()
 
     self.thread = QtCore.QThread()
     self.worker.moveToThread(self.thread)
@@ -35,18 +34,17 @@ class UpdateHandler:
       self.loop_timer.stop()
 
     # Not update the card when it is snoozing or when it is on the screen (excluding when always_on_screen is on)
-    if (not get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing:
+    if (not config.get_pr("always_on_screen") and self.card.showing_card) or self.card.is_snoozing:
       return
 
     self.worker.fetching.emit(PLAYER)
 
   def update_card(self, current_playback):
     current_playback = assign_metadata(current_playback, PLAYER)
-    theme = get_current_theme(DEF_PREFS, USER_PREFS, THEMES, self.card.theme_name)
 
     # Set theme if it was changed and show the card
-    if self.card.current_theme.get("THEME_NAME") != theme.get("THEME_NAME"):
-      self.show_theme_changed(theme, current_playback)
+    if self.card.current_theme.get("THEME_NAME") != config.current_theme.get("THEME_NAME"):
+      self.show_theme_changed(config.current_theme, current_playback)
 
     # Show warning card if Spotify is not connected
     elif PLAYER == "spotify" and not current_playback and not self.alert_card_shown:
@@ -76,7 +74,7 @@ class UpdateHandler:
   def show_spotify_not_connected(self):
     title = "Not playing"
     artist = "Turn on Spotify or check your internet connection"
-    pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
+    pixmap = convert_img_to_pixmap(config.get_pr("image_size"), r"resources\img\warning.png", False)
 
     # Set properties
     self.update_card_properties(None, title, artist, pixmap)
@@ -84,7 +82,7 @@ class UpdateHandler:
     self.previous_track_id = None
 
   def show_invalid_song_info(self, title, description):
-    pixmap = convert_img_to_pixmap(get_pr("image_size"), r"resources\img\warning.png", False)
+    pixmap = convert_img_to_pixmap(config.get_pr("image_size"), r"resources\img\warning.png", False)
     self.update_card_properties(current_track=None, title=title, artist=description, pixmap=pixmap)
     self.alert_card_shown = True
     self.previous_track_id = None
@@ -114,7 +112,7 @@ class UpdateHandler:
     title="No Title",
     artist="No Artist",
     pixmap=None,
-    image_color=get_pr("custom_color"),
+    image_color=config.get_pr("custom_color"),
   ):
     self.reset_card_properties()
 
@@ -133,12 +131,12 @@ class UpdateHandler:
         img_src = r"resources\img\warning.png"
         is_remote = False
 
-      pixmap = convert_img_to_pixmap(get_pr("image_size"), img_src, is_remote, get_pr("image_radius"))
+      pixmap = convert_img_to_pixmap(config.get_pr("image_size"), img_src, is_remote, config.get_pr("image_radius"))
 
-      if not get_pr("only_custom_color") and is_remote == False:
-        image_color = get_image_color(img_src, self.card.current_theme.get("bg_color"), get_pr("dominant_color"), False)
+      if not config.get_pr("only_custom_color") and is_remote == False:
+        image_color = get_image_color(img_src, self.card.current_theme.get("bg_color"), config.get_pr("dominant_color"), False)
       else:
-        image_color = get_image_color(img_src, self.card.current_theme.get("bg_color"), get_pr("dominant_color"))
+        image_color = get_image_color(img_src, self.card.current_theme.get("bg_color"), config.get_pr("dominant_color"))
 
     # Set properties
     self.card.title_label.setText(title)
@@ -147,16 +145,16 @@ class UpdateHandler:
     self.card.bar.setStyleSheet(f"background-color: {image_color};")
 
     # Set the card width manually
-    total_width = get_total_width(self.card.card_layout, get_pr("card_spacing"), get_pr("min_card_width"))
+    total_width = get_total_width(self.card.card_layout, config.get_pr("card_spacing"), config.get_pr("min_card_width"))
     self.card.setFixedWidth(total_width)
 
     # Update valid card's coordinates
     rect = self.card.geometry()
     coords = {
-      "upper_left": [get_pr("end_x_pos"), get_pr("end_y_pos")],
-      "upper_right": [get_pr("end_x_pos") + rect.width(), get_pr("end_y_pos")],
-      "lower_left": [get_pr("end_x_pos"), get_pr("end_y_pos") + rect.height()],
-      "lower_right": [get_pr("end_x_pos") + rect.width(), get_pr("end_y_pos") + rect.height()],
+      "upper_left": [config.get_pr("end_x_pos"), config.get_pr("end_y_pos")],
+      "upper_right": [config.get_pr("end_x_pos") + rect.width(), config.get_pr("end_y_pos")],
+      "lower_left": [config.get_pr("end_x_pos"), config.get_pr("end_y_pos") + rect.height()],
+      "lower_right": [config.get_pr("end_x_pos") + rect.width(), config.get_pr("end_y_pos") + rect.height()],
     }
     self.card.coords = coords
     self.animations.show_card()
@@ -165,7 +163,7 @@ class UpdateHandler:
     if self.card.opacity_effect.opacity() == 0:
       self.animations.fade_in()
 
-    self.card.bar.setStyleSheet(f"background-color: {get_pr('custom_accent')};")
+    self.card.bar.setStyleSheet(f"background-color: {config.get_pr('custom_accent')};")
     self.card.title_label.setText("")
     self.card.artist_label.setText("")
     self.card.img_label.clear()
@@ -216,11 +214,10 @@ class ShortcutHandler:
     self.window = window
     self.card = self.window.card
     self.animations = self.card.animations
-    self.sp = self.card.sp
     self.closing_timer = set_timer(self.exit_app)
 
     self.thread = QtCore.QThread()
-    self.worker = PlayerWorker(self.sp)
+    self.worker = PlayerWorker()
     self.worker.moveToThread(self.thread)
     self.thread.start()
 

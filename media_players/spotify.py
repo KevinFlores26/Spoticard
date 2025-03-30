@@ -1,7 +1,7 @@
 import requests, time
 from typing import Any, TYPE_CHECKING
 from media_players.base import IMetadataWorker, IMetadataHandler, IPlaybackWorker
-from config.config import SP
+from config.auth_config import sp_auth
 from utils.functions import debounce
 
 if TYPE_CHECKING: # Imports only for type annotations purposes (ignored at runtime)
@@ -16,7 +16,7 @@ class SpotifyMetadataWorker(IMetadataWorker):
 
     for attempt in range(retries):
       try:
-        current_playback = SP.current_playback()
+        current_playback = sp_auth.SP.current_playback()
 
       except requests.exceptions.ReadTimeout:
         print(f"ReadTimeout error. Retry {attempt + 1} of {retries} in {delay} seconds...")
@@ -83,24 +83,24 @@ class SpotifyPlaybackWorker(IPlaybackWorker):
       return
 
     if current_playback.get("is_playing"):
-      SP.pause_playback()
+      sp_auth.SP.pause_playback()
     elif not current_playback.get("is_playing"):
-      SP.start_playback()
+      sp_auth.SP.start_playback()
 
   def next_track(self) -> None:
-    SP.next_track()
+    sp_auth.SP.next_track()
 
   def previous_track(self) -> None:
-    SP.previous_track()
+    sp_auth.SP.previous_track()
 
   def order_playback(self) -> None:
     current_playback: PlaybackInfoDict = self.metadata_handler.playback_info
 
     if current_playback.get("shuffle_state"):
-      SP.shuffle(False)
+      sp_auth.SP.shuffle(False)
       print("shuffle turned off")
     else:
-      SP.shuffle(True)
+      sp_auth.SP.shuffle(True)
       print("shuffle turned on")
 
   def toggle_repeat(self) -> None:
@@ -113,12 +113,12 @@ class SpotifyPlaybackWorker(IPlaybackWorker):
         continue
 
       next_mode = REPEAT_MODES[(index + 1) % len(REPEAT_MODES)]
-      SP.repeat(next_mode)
+      sp_auth.SP.repeat(next_mode)
       print(f"Set repeat mode to: {next_mode}")
 
   @debounce(1000)
   def set_volume(self) -> None:
-    SP.volume(self.volume)
+    sp_auth.SP.volume(self.volume)
     print(f"Volume set to: {self.volume}%")
 
     self.volume = 0
