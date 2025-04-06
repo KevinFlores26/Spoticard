@@ -1,5 +1,5 @@
 import os, requests
-from typing import TypedDict, Any, Callable
+from typing import TypedDict, Any
 from media_players.base import IMetadataWorker, IMetadataHandler, IPlaybackWorker
 from media_players.helpers.image_extractor import extract_embedded_image
 from config.config_main import config
@@ -25,6 +25,11 @@ class FB2KMetadataWorker(IMetadataWorker):
 
     # Sometimes the nowplaying text file can be empty (likely due to a bug from nowplaying fb2k component)
     if len(lines) == 1 and lines[0] == '' and config.is_nowplaying_txt_valid:
+      if self.tries >= 5:
+        self.finished.emit({ "case_error": "invalid_data" })
+        return
+
+      self.try_again(1000)
       return
 
     if len(lines) <= 3:
@@ -50,6 +55,8 @@ class FB2KMetadataWorker(IMetadataWorker):
       metadata["artist"] = "<unknown>"
 
     config.is_nowplaying_txt_valid = True  # The nowplaying text file is valid
+    self.tries = 0
+
     self.finished.emit(metadata)
 
 

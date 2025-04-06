@@ -4,8 +4,10 @@ from PyQt5.QtCore import pyqtSignal, QObject
 from abc import ABC, ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, TypedDict
 from config.config_main import config
+from utils.helpers import set_timer
 
 if TYPE_CHECKING: # Imports only for type annotations purposes (ignored at runtime)
+  from PyQt5.QtCore import QTimer
   from ui.music_card.card import MusicCard
   from ui.music_card.animations import MusicCardAnimations
   from ui.music_card.handlers import UpdateHandler
@@ -30,10 +32,16 @@ class IMetadataWorker(QObject, ABC, metaclass=MetaQObjectABC):
   def __init__(self):
     super().__init__()
     self.getting.connect(self.get_metadata)
+    self.try_again_timer: "QTimer" = set_timer(self.get_metadata)
+    self.tries: int = 0
 
   @abstractmethod
   def get_metadata(self) -> dict[str, Any]:
     pass
+
+  def try_again(self, time: int) -> None:
+    self.tries += 1
+    self.try_again_timer.start(time)
 
 
 class PlaybackInfoDict(TypedDict):
