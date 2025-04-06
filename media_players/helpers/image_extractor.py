@@ -1,23 +1,20 @@
 import base64, re
 from abc import ABC, abstractmethod
 from mutagen.mp3 import MP3
-from mutagen.flac import FLAC
-from mutagen.mp4 import MP4
-from mutagen.id3 import ID3
+from mutagen.flac import FLAC, Picture
+from mutagen.mp4 import MP4, MP4Cover
+from mutagen.id3 import ID3, APIC
 from mutagen.oggvorbis import OggVorbis
 from mutagen.oggopus import OggOpus
-from typing import Union, TYPE_CHECKING, get_args
-
-if TYPE_CHECKING: # Imports only for type annotations purposes (ignored at runtime)
-  import mutagen
+from typing import Union, get_args
 
 BASE64_IMAGE_REGEX = r"^data:image\/[a-zA-Z0-9+.-]+;base64,"
 EmbeddedImage: Union = Union[
   str,
   bytes,
-  mutagen.id3.APIC,
-  mutagen.mp4.MP4Cover,
-  mutagen.flac.Picture,
+  APIC,
+  MP4Cover,
+  Picture,
 ]
 
 class IImageExtractor(ABC):
@@ -55,10 +52,10 @@ class IImageExtractor(ABC):
     if isinstance(image, str) and re.match(BASE64_IMAGE_REGEX, image):
       return base64.b64decode(image.split(",")[1])
 
-    if isinstance(image, (mutagen.id3.APIC, mutagen.flac.Picture)) and hasattr(image, "data"):
+    if isinstance(image, (APIC, Picture)) and hasattr(image, "data"):
       return image.data
 
-    if isinstance(image, mutagen.mp4.MP4Cover) and hasattr(image, "data"):
+    if isinstance(image, MP4Cover) and hasattr(image, "data"):
       return bytes(image)
 
 
@@ -66,7 +63,7 @@ class IImageExtractor(ABC):
 class MP3Extractor(IImageExtractor):
   def extract_image(self, filepath: str) -> bytes | None:
     audio: MP3 = MP3(filepath, ID3=ID3)
-    images: list[mutagen.id3.APIC] = [ ]
+    images: list[APIC] = []
 
     for tag in audio.tags.values():
       if hasattr(tag, "data") or tag.__class__.__name__ == "APIC":
@@ -79,7 +76,7 @@ class MP3Extractor(IImageExtractor):
 class FLACExtractor(IImageExtractor):
   def extract_image(self, filepath: str) -> bytes | None:
     audio: FLAC = FLAC(filepath)
-    images: list[mutagen.flac.Picture] = [ ]
+    images: list[Picture] = []
 
     for tag in audio.pictures:
       if hasattr(tag, "data") or tag.__class__.__name__ == "Picture":
@@ -92,7 +89,7 @@ class FLACExtractor(IImageExtractor):
 class MP4Extractor(IImageExtractor):
   def extract_image(self, filepath: str) -> bytes | None:
     audio = MP4(filepath)
-    images: list[mutagen.mp4.MP4Cover] = [cover for cover in audio.tags.get("covr", [ ])]
+    images: list[MP4Cover] = [cover for cover in audio.tags.get("covr", [])]
 
     image: EmbeddedImage = self.get_available_image(images)
     return self.convert_image_to_bytes(image)

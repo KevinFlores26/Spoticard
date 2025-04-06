@@ -13,19 +13,25 @@ class MetadataDict(TypedDict):
   is_playing: bool
 
 class FB2KMetadataWorker(IMetadataWorker):
-  def get_metadata(self):
+  def get_metadata(self) -> None:
     print(f"Fetching metadata...")
 
     if not os.path.exists(config.NOWPLAYING_TXT_PATH) and not config.NOWPLAYING_TXT_PATH.endswith(".txt"):
-      return { }
+      self.finished.emit({ })
+      return
 
     with open(config.NOWPLAYING_TXT_PATH, "r", encoding="utf-8") as file:
       lines = file.read().strip().split("\\n")
 
-    if len(lines) <= 3:
-      return { "case_error": "invalid_data" }
+    # Sometimes the nowplaying text file can be empty (likely due to a bug from nowplaying fb2k component)
+    if len(lines) == 1 and lines[0] == '' and config.is_nowplaying_txt_valid:
+      return
 
-    metadata = {
+    if len(lines) <= 3:
+      self.finished.emit({ "case_error": "invalid_data" })
+      return
+
+    metadata: MetadataDict = {
       "filepath": lines[0],
       "title": lines[1],
       "artist": lines[2],
@@ -33,14 +39,30 @@ class FB2KMetadataWorker(IMetadataWorker):
       "is_playing": True if lines[3] != '1' else False
     }
 
-    return metadata
+    if metadata["filepath"] == "":
+      self.finished.emit({ "case_error": "invalid_data" })
+      return
+
+    # Fallback
+    if not metadata["title"]:
+      metadata["title"] = "<unknown>"
+    if not metadata["artist"]:
+      metadata["artist"] = "<unknown>"
+
+    config.is_nowplaying_txt_valid = True  # The nowplaying text file is valid
+    self.finished.emit(metadata)
 
 
 class FB2KMetadataHandler(IMetadataHandler):
-  def handle_metadata(self, metadata: dict[str, Any]) -> None:
-    is_fb2k_on: Callable[[], bool] = lambda: metadata["title"] == "?" and metadata["artist"] == "?" and metadata["filepath"] == "?"
+  @staticmethod
+  def is_fb2k_standby(metadata: dict[str, Any]) -> bool:
+    return metadata.get("title") == "?" and metadata.get("artist") == "?" and metadata.get("filepath") == "?"
 
-    if is_fb2k_on() and not self.was_alert_card_shown:
+  def handle_metadata(self, metadata: dict[str, Any]) -> None:
+    if not isinstance(metadata, dict) and self.was_alert_card_shown:
+      return
+
+    if self.is_fb2k_standby(metadata) and not self.was_alert_card_shown:
       self.show_invalid_song_info("Not playing", "Turn on foobar2000 and play a great playlist")
       return
 
@@ -55,36 +77,36 @@ class FB2KMetadataHandler(IMetadataHandler):
       title: str = "Nowplaying text file is invalid"
       description: str = "Check if the components' params are correct. More info in the readme file"
 
-      self.show_invalid_song_info(title, description)
+      self.show_invalid_song_info(title, description, error=True)
       return
 
-    self._playback_info["current_track_id"] = metadata["filepath"]
-    self._playback_info["current_track"] = metadata
-    self._playback_info["is_playing"] = metadata["is_playing"]
-    self._playback_info["shuffle_state"] = False
-    self._playback_info["repeat_state"] = "off"
-    self._playback_info["volume_percent"] = 0
+    if self.is_fb2k_standby(metadata) or not metadata or metadata.get("case_error"):
+      return  # Not show the card until all is ok
+
+    self.card.playback_info["current_track_id"] = metadata["filepath"]
+    self.card.playback_info["current_track"] = metadata
+    self.card.playback_info["is_playing"] = metadata["is_playing"]
+    self.card.playback_info["shuffle_state"] = False
+    self.card.playback_info["repeat_state"] = "off"
+    self.card.playback_info["volume_percent"] = 0
 
     if self.requires_update():
       self.show_info(metadata)
 
-    self._playback_info["previous_track_id"] = self._playback_info["current_track_id"]
-    self._playback_info["previous_state_is_playing"] = self._playback_info["is_playing"]
+    self.card.playback_info["previous_track_id"] = self.card.playback_info["current_track_id"]
+    self.card.playback_info["previous_state_is_playing"] = self.card.playback_info["is_playing"]
 
   def show_info(self, metadata: dict[str, str | bytes | None]) -> None:
     title: str = metadata["title"]
     artist: str = metadata["artist"]
     image: str | bytes | None = metadata["image"]
 
-    self.updater.update_card_properties(None, title, artist, image)
+    self.updater.update_card_content(title, artist, image)
     self.was_alert_card_shown = False
+    self.was_error_card_shown = False
 
 
 class FB2KPlaybackWorker(IPlaybackWorker):
-  def __init__(self, metadata_handler: IMetadataHandler):
-    super().__init__(metadata_handler)
-    self.last_playback_order: int = 0
-
   def send_command(self, cmd: str, param: str = "&param1=") -> None:
     """
     Sends a request to the http_control component server (must be installed).

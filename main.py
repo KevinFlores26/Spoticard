@@ -2,7 +2,7 @@ import keyboard
 from PyQt5 import QtWidgets
 from config.auth_config import sp_auth
 from config.config_main import config
-from ui.music_card.music_card_main import MusicCardWindow
+from ui.music_card.window import MusicCardWindow
 
 # Run the app
 if __name__ == "__main__":

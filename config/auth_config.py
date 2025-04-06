@@ -1,13 +1,13 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from urllib.parse import urlencode
-from utils.helpers import load_json
+from utils.file_handling import File
 from config.base import ConfigRelatedMeta
 
 class SpotifyAuthConfig(metaclass=ConfigRelatedMeta):
   def __init__(self):
     #  You must create a client.json in config dir, then add your spotify client data there
-    self.CLIENT_DATA: dict[str, str] = load_json(r"config\client.json")
+    self.CLIENT_DATA: dict[str, str] = File().load_json(r"config\client.json")
     self.PARAMS: dict[str, str] = {
       # Override both client params with yours
       # (go to https://developer.spotify.com/dashboard if you don't have a spotify dev account)

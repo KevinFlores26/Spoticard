@@ -2,7 +2,7 @@ import requests, time
 from typing import Any, TYPE_CHECKING
 from media_players.base import IMetadataWorker, IMetadataHandler, IPlaybackWorker
 from config.auth_config import sp_auth
-from utils.functions import debounce
+from utils.helpers import debounce
 
 if TYPE_CHECKING: # Imports only for type annotations purposes (ignored at runtime)
   from media_players.base import PlaybackInfoDict
@@ -30,6 +30,9 @@ class SpotifyMetadataWorker(IMetadataWorker):
 
 class SpotifyMetadataHandler(IMetadataHandler):
   def handle_metadata(self, metadata: dict[str, Any]) -> None:
+    if not isinstance(metadata, dict) and self.was_alert_card_shown:
+      return
+
     if not metadata and not self.was_alert_card_shown:
       self.show_invalid_song_info("Not playing", "Turn on Spotify or check your internet connection")
       return
@@ -45,19 +48,19 @@ class SpotifyMetadataHandler(IMetadataHandler):
     playback_item: dict[str, Any] = metadata.get("item")
 
     # Update current info
-    self._playback_info["current_track_id"] = playback_item.get("id")
-    self._playback_info["current_track"] = playback_item
-    self._playback_info["is_playing"] = metadata.get("is_playing")
-    self._playback_info["shuffle_state"] = metadata.get("shuffle_state")
-    self._playback_info["repeat_state"] = metadata.get("repeat_state")
-    self._playback_info["volume_percent"] = metadata.get("device").get("volume_percent")
+    self.card.playback_info["current_track_id"] = playback_item.get("id")
+    self.card.playback_info["current_track"] = playback_item
+    self.card.playback_info["is_playing"] = metadata.get("is_playing")
+    self.card.playback_info["shuffle_state"] = metadata.get("shuffle_state")
+    self.card.playback_info["repeat_state"] = metadata.get("repeat_state")
+    self.card.playback_info["volume_percent"] = metadata.get("device").get("volume_percent")
 
     if self.requires_update():
       self.show_info(metadata)
 
     # Update previous info (really the same as the current one, but for comparison purposes)
-    self._playback_info["previous_track_id"] = self._playback_info["current_track_id"]
-    self._playback_info["previous_state_is_playing"] = self._playback_info["is_playing"]
+    self.card.playback_info["previous_track_id"] = self.card.playback_info["current_track_id"]
+    self.card.playback_info["previous_state_is_playing"] = self.card.playback_info["is_playing"]
 
 
   def show_info(self, metadata: dict[str, Any]) -> None:
@@ -72,13 +75,13 @@ class SpotifyMetadataHandler(IMetadataHandler):
     artist: str = current_playback.get("artists")[0].get("name")
     img_url: str = current_playback.get("album").get("images")[0].get("url")
 
-    self.updater.update_card_properties(None, title, artist, img_url)
+    self.updater.update_card_content(title, artist, img_url)
     self.was_alert_card_shown = False
 
 
 class SpotifyPlaybackWorker(IPlaybackWorker):
   def toggle_playback(self) -> None:
-    current_playback: PlaybackInfoDict = self.metadata_handler.playback_info
+    current_playback: "PlaybackInfoDict" = self.card.playback_info
     if not current_playback:
       return
 
@@ -94,7 +97,7 @@ class SpotifyPlaybackWorker(IPlaybackWorker):
     sp_auth.SP.previous_track()
 
   def order_playback(self) -> None:
-    current_playback: PlaybackInfoDict = self.metadata_handler.playback_info
+    current_playback: "PlaybackInfoDict" = self.card.playback_info
 
     if current_playback.get("shuffle_state"):
       sp_auth.SP.shuffle(False)
@@ -105,7 +108,7 @@ class SpotifyPlaybackWorker(IPlaybackWorker):
 
   def toggle_repeat(self) -> None:
     REPEAT_MODES: list[str] = ['off', 'context', 'track']
-    current_playback: PlaybackInfoDict = self.metadata_handler.playback_info
+    current_playback: "PlaybackInfoDict" = self.card.playback_info
 
     index = REPEAT_MODES.index(current_playback.get('repeat_state', REPEAT_MODES[0]))
     for mode in REPEAT_MODES:
@@ -125,7 +128,7 @@ class SpotifyPlaybackWorker(IPlaybackWorker):
     self.setting_volume = False
 
   def change_volume(self, increase: bool) -> None:
-    current_playback: PlaybackInfoDict = self.metadata_handler.playback_info
+    current_playback: "PlaybackInfoDict" = self.card.playback_info
     current_volume: int = current_playback['volume_percent']
 
     if not self.setting_volume:

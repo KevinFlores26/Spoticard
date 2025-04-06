@@ -1,5 +1,5 @@
 {
-  "player": "foobar2000",
+  "media_player": "fb2k",
   "nowplaying_txt_path": "foobar2000-v2\\nowplaying.txt",
 
   "hide_on_click": true,
@@ -42,7 +42,6 @@
   "card_spacing": 20,
 
   "theme": "adaptive",
-  "dominant_color": false,
   "only_custom_color": false,
   "custom_color": "#1ed760",
 
