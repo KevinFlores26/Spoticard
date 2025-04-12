@@ -40,7 +40,11 @@ class UpdateHandler:
       self.loop_timer.stop()
 
     # Not update the card when it is snoozing or when it is on the screen (excluding when always_on_screen is on)
-    if (not config.get_pr("always_on_screen") and self.card.is_card_showing) or self.card.is_snoozing:
+    if self.card.is_snoozing:
+      return
+
+    elif not config.get_pr("always_on_screen") and self.card.is_card_showing:
+      self.loop_timer.start(1000)
       return
 
     self.worker.getting.emit()
