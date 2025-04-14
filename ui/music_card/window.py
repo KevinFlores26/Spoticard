@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow
 from typing import TYPE_CHECKING
 
@@ -11,26 +11,9 @@ if TYPE_CHECKING: # Imports only for type annotations purposes (ignored at runti
 
 
 class MusicCardWindow(QMainWindow):
-  if config.get_pr("shortcuts"):
-    # Receive signals from shortcuts
-    visibility_listener: pyqtSignal = pyqtSignal()
-    theme_listener: pyqtSignal = pyqtSignal()
-    play_pause_listener: pyqtSignal = pyqtSignal()
-    shuffle_listener: pyqtSignal = pyqtSignal()
-    repeat_listener: pyqtSignal = pyqtSignal()
-    next_listener: pyqtSignal = pyqtSignal()
-    previous_listener: pyqtSignal = pyqtSignal()
-    volume_up_listener: pyqtSignal = pyqtSignal()
-    volume_down_listener: pyqtSignal = pyqtSignal()
-    snooze_listener: pyqtSignal = pyqtSignal()
-    exit_listener: pyqtSignal = pyqtSignal()
-
   def __init__(self, app: "QApplication") -> None:
     super().__init__()
-    if config.get_pr("only_on_desktop"):
-      self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
-    else:
-      self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+    self.set_showing_level()  # Set window flags and mainly "only desktop" or "always on top" mode
     self.setAttribute(Qt.WA_TranslucentBackground)
 
     self.screen: ScreenHandler = ScreenHandler(self, app)
@@ -40,21 +23,20 @@ class MusicCardWindow(QMainWindow):
 
     self.card: MusicCard = MusicCard(self)
     self.card.setParent(self)
+    self.set_showing_mode()  # Set if the card should be "always on screen" or "hide dynamically"
+
+    # Shortcut handler
+    if config.get_pr("shortcuts"):
+      self.shortcut = ShortcutHandler(self)
+
+  def set_showing_level(self) -> None:
+    if config.get_pr("only_on_desktop"):
+      self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
+    else:
+      self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+
+  def set_showing_mode(self) -> None:
     if config.get_pr("always_on_screen"):
       self.card.move(abs(config.get_pr("fixed_x_pos")), abs(config.get_pr("fixed_y_pos")))
     else:
       self.card.move(config.get_pr("start_x_pos"), config.get_pr("start_y_pos"))
-
-    # Shortcut handlers
-    self.shortcut = ShortcutHandler(self)
-    self.visibility_listener.connect(self.shortcut.toggle_card_visibility)
-    self.theme_listener.connect(self.shortcut.toggle_theme)
-    self.play_pause_listener.connect(self.shortcut.toggle_playback)
-    self.next_listener.connect(self.shortcut.next_track)
-    self.previous_listener.connect(self.shortcut.previous_track)
-    self.shuffle_listener.connect(self.shortcut.toggle_shuffle)
-    self.repeat_listener.connect(self.shortcut.toggle_repeat)
-    self.volume_up_listener.connect(self.shortcut.volume_up)
-    self.volume_down_listener.connect(self.shortcut.volume_down)
-    self.snooze_listener.connect(self.shortcut.toggle_snooze)
-    self.exit_listener.connect(self.shortcut.exit_app)

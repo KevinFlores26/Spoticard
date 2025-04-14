@@ -9,7 +9,7 @@
   "play_pause_shortcut": "ctrl+alt+3",
   "previous_shortcut": "ctrl+alt+4",
   "next_shortcut": "ctrl+alt+5",
-  "shuffle_shortcut": "ctrl+alt+6",
+  "order_shortcut": "ctrl+alt+6",
   "repeat_shortcut": "ctrl+alt+7",
   "volume_up_shortcut": "ctrl+alt+=",
   "volume_down_shortcut": "ctrl+alt+-",

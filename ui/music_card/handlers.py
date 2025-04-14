@@ -1,7 +1,8 @@
-from PyQt5.QtCore import QTimer, QThread
+from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
 from PyQt5.QtGui import QCursor
 from PyQt5.QtWidgets import QApplication
-from typing import TYPE_CHECKING, Any, Union
+from keyboard import add_hotkey
+from typing import TYPE_CHECKING, Any, Union, Callable
 
 from config.config_main import config
 from utils.helpers import set_timer
@@ -147,17 +148,40 @@ class CursorHandler:
       self.hover_timer.start(100)
 
 
-class ShortcutHandler:
+class ShortcutHandler(QObject):
+  on_shortcut: pyqtSignal = pyqtSignal(str)
+
   def __init__(self, window: "MusicCardWindow") -> None:
+    super().__init__()
     self.window: "MusicCardWindow" = window
     self.card: "MusicCard" = self.window.card
     self.animations: "MusicCardAnimations" = self.card.animations
     self.closing_timer: QTimer = set_timer(self.exit_app)
 
+    self.shortcut_functions: dict[str, Callable] = {
+      "visibility": self.toggle_card_visibility,
+      "theme": self.toggle_theme,
+      "snooze": self.toggle_snooze,
+      "exit": self.exit_app,
+    }
+
+    self.on_shortcut.connect(self.execute_shortcut)
+    self.register_shortcuts()
+
     self.thread: QThread = QThread()
     self.worker: "IPlaybackWorker" = MEDIA_FACTORY.create_playback_worker(self.card)
     self.worker.moveToThread(self.thread)
     self.thread.start()
+
+  def register_shortcuts(self) -> None:
+    for shortcut in self.shortcut_functions.keys():
+      add_hotkey(config.get_pr(f"{shortcut}_shortcut"), lambda key=shortcut: self.on_shortcut.emit(key))
+
+  def execute_shortcut(self, shortcut: str) -> None:
+    if self.card.is_snoozing and shortcut != "snooze":
+      return
+
+    self.shortcut_functions[shortcut]()
 
   # App related shortcuts
   def toggle_snooze(self) -> None:
@@ -165,6 +189,8 @@ class ShortcutHandler:
       print("Awake...")
       if self.card.is_card_showing:
         self.animations.fade_in()
+      else:
+        self.animations.show_card()
 
       self.card.is_snoozing = False
       self.card.updater.start_loop()
@@ -177,7 +203,6 @@ class ShortcutHandler:
       self.card.is_snoozing = True
 
   def exit_app(self) -> None:
-    print("Exiting...")
     if self.card.is_card_showing:
       self.animations.fade_out()
 
@@ -185,52 +210,20 @@ class ShortcutHandler:
 
   # Visual related shortcuts
   def toggle_card_visibility(self) -> None:
-    if self.card.is_snoozing:
-      return
-
     if not self.card.is_card_showing:
       self.animations.show_card()
+
     elif not self.card.is_faded_out and self.card.is_card_showing:
       self.card.cursor_handler.on_click()
+
     elif self.card.is_faded_out:
       self.card.cursor_handler.on_leave(True)
 
-  def toggle_theme(self) -> None:
-    if self.card.is_snoozing:
-      return
-
+  @staticmethod
+  def toggle_theme() -> None:
     next_theme_name: str = next(config.themes_cycle)
     print(f"{next_theme_name=}")
     config.set_current_theme(next_theme_name)
-
-  # Player related shortcuts
-  def toggle_playback(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_toggle_playback.emit()
-
-  def next_track(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_next_track.emit()
-
-  def previous_track(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_previous_track.emit()
-
-  def toggle_shuffle(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_order_playback.emit()
-
-  def toggle_repeat(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_repeat.emit()
-
-  def volume_up(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_volume.emit(True)
-
-  def volume_down(self) -> None:
-    if not self.card.is_snoozing:
-      self.worker.on_volume.emit(False)
 
 
 class ScreenHandler:

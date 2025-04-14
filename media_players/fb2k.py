@@ -1,5 +1,7 @@
 import os, requests
-from typing import TypedDict, Any
+from keyboard import add_hotkey
+from typing import TypedDict, Any, Callable
+
 from media_players.base import IMetadataWorker, IMetadataHandler, IPlaybackWorker
 from media_players.helpers.image_extractor import extract_embedded_image
 from config.config_main import config
@@ -114,6 +116,13 @@ class FB2KMetadataHandler(IMetadataHandler):
 
 
 class FB2KPlaybackWorker(IPlaybackWorker):
+  def register_shortcuts(self) -> None:
+    is_string: Callable[[str], bool] = lambda sc: config.get_pr(f"{sc}_shortcut") and isinstance(config.get_pr(f"{sc}_shortcut"), str)
+
+    for shortcut in self.shortcut_functions.keys():
+      if is_string(shortcut):
+        add_hotkey(config.get_pr(f"{shortcut}_shortcut"), lambda key=shortcut: self.on_playback_shortcut.emit(key))
+
   def send_command(self, cmd: str, param: str = "&param1=") -> None:
     """
     Sends a request to the http_control component server (must be installed).
@@ -123,7 +132,7 @@ class FB2KPlaybackWorker(IPlaybackWorker):
     :return: None
     """
     COMMANDS: dict[str, str] = {
-      "toggle_playback": "PlayOrPause",
+      "play_pause": "PlayOrPause",
       "next": "StartNext",
       "previous": "StartPrevious",
       "toggle_repeat": "ToggleRepeat",
@@ -171,8 +180,8 @@ class FB2KPlaybackWorker(IPlaybackWorker):
 
     print("Command sent successfully.")
 
-  def toggle_playback(self) -> None:
-    self.send_command("toggle_playback")
+  def play_pause(self) -> None:
+    self.send_command("play_pause")
 
   def next_track(self) -> None:
     self.send_command("next")
@@ -184,7 +193,7 @@ class FB2KPlaybackWorker(IPlaybackWorker):
   def toggle_repeat(self) -> None:
     pass
 
-  def order_playback(self) -> None:
+  def change_order(self) -> None:
     pass
 
   def change_volume(self, increase: bool) -> None:

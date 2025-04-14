@@ -1,5 +1,8 @@
 import requests, time
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Callable
+from keyboard import add_hotkey
+
+from config.config_main import config
 from media_players.base import IMetadataWorker, IMetadataHandler, IPlaybackWorker
 from config.auth_config import sp_auth
 from utils.helpers import debounce
@@ -80,7 +83,15 @@ class SpotifyMetadataHandler(IMetadataHandler):
 
 
 class SpotifyPlaybackWorker(IPlaybackWorker):
-  def toggle_playback(self) -> None:
+  def register_shortcuts(self) -> None:
+    is_string: Callable[[str], bool] = lambda sc: config.get_pr(f"{sc}_shortcut") and isinstance(config.get_pr(f"{sc}_shortcut"), str)
+    is_spotify_allowed: Callable[[], bool] = lambda: "user-modify-playback-state" in sp_auth.PARAMS["SCOPE"]
+
+    for shortcut in self.shortcut_functions.keys():
+      if is_string(shortcut) and is_spotify_allowed():
+        add_hotkey(config.get_pr(f"{shortcut}_shortcut"), lambda key=shortcut: self.on_playback_shortcut.emit(key))
+
+  def play_pause(self) -> None:
     current_playback: "PlaybackInfoDict" = self.card.playback_info
     if not current_playback:
       return
@@ -96,7 +107,7 @@ class SpotifyPlaybackWorker(IPlaybackWorker):
   def previous_track(self) -> None:
     sp_auth.SP.previous_track()
 
-  def order_playback(self) -> None:
+  def change_order(self) -> None:
     current_playback: "PlaybackInfoDict" = self.card.playback_info
 
     if current_playback.get("shuffle_state"):

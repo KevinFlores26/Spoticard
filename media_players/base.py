@@ -1,8 +1,7 @@
 import darkdetect
-from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import pyqtSignal, QObject, pyqtSlot
 from abc import ABC, ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, Callable
 from config.config_main import config
 from utils.helpers import set_timer
 
@@ -120,12 +119,7 @@ class IPlaybackWorker(QObject, ABC, metaclass=MetaQObjectABC):
   Handles the events triggered by the shortcuts.
   These events can control the playback
   """
-  on_toggle_playback: pyqtSignal = pyqtSignal()
-  on_next_track: pyqtSignal = pyqtSignal()
-  on_previous_track: pyqtSignal = pyqtSignal()
-  on_order_playback: pyqtSignal = pyqtSignal()
-  on_repeat: pyqtSignal = pyqtSignal()
-  on_volume: pyqtSignal = pyqtSignal(bool)
+  on_playback_shortcut: pyqtSignal = pyqtSignal(str)
 
   def __init__(self, card: "MusicCard"):
     super().__init__()
@@ -135,39 +129,50 @@ class IPlaybackWorker(QObject, ABC, metaclass=MetaQObjectABC):
     self.setting_volume: bool = False
     self.last_playback_order: int = 0
 
-    self.on_toggle_playback.connect(self.toggle_playback)
-    self.on_next_track.connect(self.next_track)
-    self.on_previous_track.connect(self.previous_track)
-    self.on_order_playback.connect(self.order_playback)
-    self.on_repeat.connect(self.toggle_repeat)
-    self.on_volume.connect(self.change_volume)
+    self.shortcut_functions: dict[str, Callable] = {
+      "play_pause": self.play_pause,
+      "next": self.next_track,
+      "previous": self.previous_track,
+      "order": self.change_order,
+      "repeat": self.toggle_repeat,
+      "volume_up": lambda: self.change_volume(True),
+      "volume_down": lambda: self.change_volume(False)
+    }
 
-  @QtCore.pyqtSlot()
+    self.register_shortcuts()
+    self.on_playback_shortcut.connect(self.execute_shortcut)
+
+  @pyqtSlot(str)
+  def execute_shortcut(self, shortcut: str) -> None:
+    if self.card.is_snoozing:
+      return
+
+    self.shortcut_functions[shortcut]()
+
   @abstractmethod
-  def toggle_playback(self) -> None:
+  def register_shortcuts(self) -> None:
     pass
 
-  @QtCore.pyqtSlot()
+  @abstractmethod
+  def play_pause(self) -> None:
+    pass
+
   @abstractmethod
   def next_track(self) -> None:
     pass
 
-  @QtCore.pyqtSlot()
   @abstractmethod
   def previous_track(self) -> None:
     pass
 
-  @QtCore.pyqtSlot()
   @abstractmethod
-  def order_playback(self) -> None:
+  def change_order(self) -> None:
     pass
 
-  @QtCore.pyqtSlot()
   @abstractmethod
   def toggle_repeat(self) -> None:
     pass
 
-  @QtCore.pyqtSlot(bool)
   @abstractmethod
   def change_volume(self, increase: bool) -> None:
     pass
