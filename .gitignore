@@ -3,6 +3,11 @@ config/client.json
 .idea/
 .vscode/
 
+# Build
+build/
+dist/
+*.spec
+
 # Caches
 .cache
 __pycache__/

@@ -12,6 +12,7 @@ colorthief = "*"
 darkdetect = "*"
 keyboard = "*"
 mutagen = "*"
+pyinstaller = "*"
 
 [dev-packages]
 
